@@ -124,6 +124,28 @@ Setup-Schritt, dafür ein einmaliger, langsamerer erster Lauf.
 [offiziellen Real-ESRGAN-Release-Seite](https://github.com/xinntao/Real-ESRGAN/releases) geladen und
 unter `video-pipeline/lofi_pipeline/models/RealESRGAN_x4plus_anime_6B.pth` abgelegt werden.
 
+**4f. Trainiertes Lo-Fi-LoRA (optional, um ohne eigenes Training sofort generieren zu können):**
+
+Dieses Repository enthält aus Größen- und Lizenzgründen **keinen** trainierten LoRA-Adapter, nur den
+Code zum Trainieren (Schritt 8). Der aktuell freigegebene, menschlich bewertete Adapter (Step 625,
+109 MB, trainiert auf 5.000 genrebalancierten Clips) ist separat auf dem Hugging Face Hub veröffentlicht:
+
+[huggingface.co/AdilBerke/lofi-musicgen-lora](https://huggingface.co/AdilBerke/lofi-musicgen-lora)
+(Modellkarte mit vollständiger Trainingskonfiguration und SHA256-Prüfsumme)
+
+```bash
+audio-pipeline/.venv/bin/huggingface-cli download AdilBerke/lofi-musicgen-lora lora_adapter.pt \
+  --local-dir audio-pipeline/training/musicgen/lora_training/checkpoints/step_000625/
+
+cd audio-pipeline
+.venv/bin/python code/start.py --lora-freigeben \
+  --checkpoint training/musicgen/lora_training/checkpoints/step_000625/lora_adapter.pt
+```
+
+Danach ist der heruntergeladene Adapter als aktiver, freigegebener Stand registriert und direkt für
+Longform-Generierung (Schritt 8) nutzbar — ohne eigenen Trainingslauf. Ohne diesen Schritt liefert die
+Pipeline erst nach einem vollständigen, selbst durchgeführten LoRA-Training (Schritt 8) Ergebnisse.
+
 ## 5. Frontend
 
 ```bash
