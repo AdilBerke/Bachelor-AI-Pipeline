@@ -1,0 +1,57 @@
+name: tree_wind_motion
+element_type: trees_and_leaves
+source_reference: "https://www.youtube.com/watch?v=kxjCTgrmA9Q — Secret Garden Lofi Coffee"
+analysis_status: analyzed
+
+visible_motion:
+  - leaves sway gently left and right with slight delay between branches
+  - small branches bend slightly in wind direction, then spring back slowly
+  - upper canopy moves more than lower branches
+  - shadows on ground shift subtly as leaves move
+  - trunk remains completely stable — no trunk movement
+  - individual leaves flutter independently, not in sync
+
+speed: slow_to_medium
+rhythm: smooth_organic_loop
+amplitude: low
+direction: mostly_horizontal_with_slight_vertical
+loopability: seamless_if_motion_is_cyclic
+
+timing:
+  sway_period: "3-6 seconds per full left-right cycle"
+  leaf_flutter: "0.5-1.5 seconds per individual flutter"
+  phase_offset: "adjacent branches offset by 0.2-0.5 seconds to avoid sync"
+  wind_gust_interval: "none for calm scene — constant gentle breeze only"
+
+what_to_avoid:
+  - no storm-level movement
+  - no aggressive shaking or snapping
+  - no sudden direction reversal
+  - no synchronized movement across all leaves at once
+  - no motion in trunk or thick branches
+  - no leaves detaching or falling (distraction)
+
+how_to_apply_to_my_scene:
+  - animate only the large framing tree on the left
+  - focus motion on the upper leaf clusters
+  - keep trunk and main branch completely still
+  - layer motion: upper branches move more, lower branches less
+  - preserve overall calm Lo-Fi mood — motion should be barely noticeable on first look
+
+prompt_keywords:
+  - gentle wind in leaves
+  - subtle leaf sway
+  - soft moving foliage
+  - calm breeze
+  - barely moving branches
+  - organic tree animation
+  - still trunk gently swaying leaves
+
+negative_prompt_keywords:
+  - storm
+  - shaking trees
+  - violent wind
+  - flying leaves
+  - tornado
+  - aggressive motion
+  - fast movement

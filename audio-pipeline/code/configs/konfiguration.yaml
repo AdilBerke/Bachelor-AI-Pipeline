@@ -1,0 +1,50 @@
+# Zentrale Projektkonfiguration.
+# Diese Datei beschreibt die aktuell aktive MusicGen-Audio-Pipeline in einer
+# kompakten Form. Sie ist keine Trainingslogik, sondern eine lesbare Uebersicht
+# fuer Skripte, Dokumentation und Bachelorarbeit.
+
+projekt:
+  # Projektname und fachlicher Fokus.
+  name: "MusicGen Bachelorarbeit"
+  fokus: "MusicGen-Audio"
+
+pipeline:
+  # Die Hauptpipeline startet erst bei vorhandenen Daten. Crawler und Suche
+  # bleiben getrennt, damit Trainingslaeufe reproduzierbar bleiben.
+  hauptdatei: "code/src/Pipeline/ablauf.py"
+  start: "Merkmal-Extraktion"
+  ende: "Finale Longform-Audio"
+  crawler_und_suche: "separat"
+
+daten:
+  # Aktives 30s-Dataset und Ordner fuer Human-in-the-Loop-Bewertungen.
+  trainingsdataset: "daten/processed/musicgen_30s_aus_60s_clips"
+  bewertungen: "training/bewertungen/musicgen"
+  ausgaben: "training/ausgaben/musicgen_loops"
+
+modell:
+  # Melody Large ist das Basismodell. Der LoRA-Checkpoint step_2000 ist die
+  # aktuell stabile Referenz fuer Generierung und Longform-Looping.
+  basis: "facebook/musicgen-melody-large"
+  lokaler_pfad: "daten/modelle/musicgen/facebook_musicgen_melody_large"
+  bester_lora_checkpoint: "training/musicgen/melody_large_lora/lora_30s_v002/checkpoints/step_002000/lora_adapter.pt"
+
+training:
+  # Training ist standardmaessig deaktiviert. Es wird nur bewusst ueber die
+  # Pipeline-Optionen oder Training-Befehle gestartet.
+  aktiv: false
+  standard_steps: 500
+  learning_rate: 0.000002
+  vram_limit: 0.90
+
+audio:
+  # Einheitlicher Audio-Standard fuer MusicGen: 30 Sekunden, mono, 32 kHz.
+  # Longform-Audios werden spaeter durch Auswahl und Crossfade dieser Clips
+  # zusammengesetzt.
+  clip_dauer_sekunden: 30
+  sample_rate: 32000
+  kanaele: 1
+  longform_standard: "3m"
+  crossfade_sekunden: 8
+  ziel_bpm: 78
+  bpm_toleranz: 4

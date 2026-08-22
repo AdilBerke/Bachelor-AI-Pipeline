@@ -1,0 +1,162 @@
+{
+  "genres": {
+    "jazz_lofi": {
+      "label": "Jazz Lofi",
+      "caption": "jazz lofi instrumental, warm rhodes or piano chords, soft walking bass tucked behind chords, brushed drums, relaxed groove, no vocals",
+      "prefixes": [
+        "jazz lofi",
+        "jazzlofi"
+      ],
+      "keywords": [
+        "jazz lofi",
+        "jazzhop",
+        "jazzy",
+        "rhodes",
+        "saxophone",
+        "sax"
+      ],
+      "required_terms": [
+        "jazz",
+        "jazzhop",
+        "jazzy",
+        "rhodes",
+        "sax",
+        "trumpet"
+      ],
+      "block_terms": [
+        "oud",
+        "arabic",
+        "oriental",
+        "world music",
+        "bossa",
+        "bossa nova",
+        "brazil",
+        "brazilian",
+        "samba",
+        "smooth jazz",
+        "jazz cafe",
+        "cafe jazz",
+        "coffee jazz",
+        "relaxing jazz",
+        "sleep jazz",
+        "night jazz",
+        "dinner jazz",
+        "jazz bgm",
+        "piano jazz",
+        "jazz piano music"
+      ]
+    },
+    "chillhop_lofi": {
+      "label": "Chillhop Lofi",
+      "caption": "chillhop lofi instrumental, smooth drums, light low end, mellow chords, relaxed head nod groove, no vocals",
+      "prefixes": [
+        "chillhop lofi",
+        "chill lofi",
+        "chillhop"
+      ],
+      "keywords": [
+        "chillhop",
+        "chill lofi",
+        "lofi hip hop",
+        "chill beat"
+      ],
+      "required_terms": [
+        "chillhop",
+        "lofi hip hop",
+        "hip hop",
+        "hiphop",
+        "beat",
+        "beats",
+        "groove"
+      ]
+    },
+    "dreamy_lofi": {
+      "label": "Dreamy Lofi",
+      "caption": "dreamy lofi instrumental, soft warm texture, mellow piano or pads, gentle drums, relaxed mood, no vocals",
+      "prefixes": [
+        "dreamy lofi",
+        "dream lofi"
+      ],
+      "keywords": [
+        "dreamy lofi",
+        "dreamy",
+        "night lofi",
+        "ambient lofi"
+      ],
+      "required_terms": [
+        "dreamy",
+        "dream",
+        "night",
+        "calm",
+        "soft",
+        "warm",
+        "relax",
+        "cute",
+        "ambient lofi"
+      ]
+    },
+    "study_lofi": {
+      "label": "Study Lofi",
+      "caption": "study lofi instrumental, calm focus mood, soft drums, light low end, mellow chords, stable groove, no vocals",
+      "prefixes": [
+        "study lofi",
+        "focus lofi"
+      ],
+      "keywords": [
+        "study lofi",
+        "study",
+        "focus",
+        "coding lofi",
+        "work lofi"
+      ],
+      "required_terms": [
+        "study",
+        "focus",
+        "work",
+        "working",
+        "relax",
+        "coding"
+      ]
+    },
+    "guitar_lofi": {
+      "label": "Guitar Lofi",
+      "caption": "guitar-led lofi instrumental, clean electric or fingerpicked guitar in the foreground, mellow guitar chords, soft drums, light low end, no vocals",
+      "prefixes": [
+        "guitar lofi",
+        "gitarre lofi"
+      ],
+      "keywords": [
+        "guitar lofi",
+        "lofi guitar",
+        "guitar vibe",
+        "chill guitar beats",
+        "acoustic lofi",
+        "lofi guitar beats",
+        "gitarre",
+        "guitar-led",
+        "fingerpicked guitar",
+        "clean electric guitar",
+        "nylon string guitar",
+        "acoustic guitar",
+        "guitar"
+      ],
+      "required_terms": [
+        "guitar",
+        "gitarre",
+        "guitar-led",
+        "fingerpicked",
+        "electric guitar",
+        "acoustic",
+        "strings"
+      ],
+      "block_terms": [
+        "country",
+        "healing guitar",
+        "healing music",
+        "flamenco",
+        "rock guitar",
+        "guitar solo"
+      ]
+    }
+  }
+}

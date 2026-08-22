@@ -1,0 +1,228 @@
+{
+  "project": "Realistischer Hase am See",
+  "model": "LTXV_13B_097_DEV",
+  "created": "2026-08-06",
+  "tests": [
+    {
+      "test_id": "A",
+      "name": "Baseline Lo-Fi LoRA R8",
+      "lora": "round_08/lora_weights_step_00150.safetensors",
+      "resolution": [
+        960,
+        544
+      ],
+      "frames": 97,
+      "inference_steps": 80,
+      "guidance": 9.0,
+      "seed": 777,
+      "output_path": "outputs/test_A/rabbit_lofi_r8.mp4",
+      "status": "done",
+      "render_time_s": null,
+      "scores": {
+        "rabbit_sharpness": null,
+        "fur_quality": null,
+        "anatomy": null,
+        "rabbit_stability": null,
+        "background_stability": null,
+        "noise_inv": null,
+        "flicker_inv": null,
+        "motion_naturalness": null,
+        "lake_quality": null,
+        "overall": null,
+        "auto_ssim": 0.9938,
+        "auto_sharpness": 0.1116,
+        "auto_flicker": 0.00388,
+        "auto_motion": 0.164,
+        "auto_color": 0.9882,
+        "auto_overall": 0.784
+      },
+      "avg_score": null,
+      "notes": ""
+    },
+    {
+      "test_id": "B",
+      "name": "Text-zu-Video 768x432",
+      "lora": null,
+      "resolution": [
+        768,
+        432
+      ],
+      "frames": 49,
+      "inference_steps": 50,
+      "guidance": 7.0,
+      "seed": 42,
+      "output_path": "outputs/test_B/rabbit_t2v_768x432.mp4",
+      "status": "pending",
+      "render_time_s": null,
+      "scores": {
+        "rabbit_sharpness": null,
+        "fur_quality": null,
+        "anatomy": null,
+        "rabbit_stability": null,
+        "background_stability": null,
+        "noise_inv": null,
+        "flicker_inv": null,
+        "motion_naturalness": null,
+        "lake_quality": null,
+        "overall": null
+      },
+      "avg_score": null,
+      "notes": ""
+    },
+    {
+      "test_id": "B2",
+      "name": "Text-zu-Video 1280x720",
+      "lora": null,
+      "resolution": [
+        1280,
+        720
+      ],
+      "frames": 49,
+      "inference_steps": 60,
+      "guidance": 7.0,
+      "seed": 42,
+      "output_path": "outputs/test_B2/rabbit_t2v_1280x720.mp4",
+      "status": "pending",
+      "render_time_s": null,
+      "scores": {
+        "rabbit_sharpness": null,
+        "fur_quality": null,
+        "anatomy": null,
+        "rabbit_stability": null,
+        "background_stability": null,
+        "noise_inv": null,
+        "flicker_inv": null,
+        "motion_naturalness": null,
+        "lake_quality": null,
+        "overall": null
+      },
+      "avg_score": null,
+      "notes": ""
+    },
+    {
+      "test_id": "C",
+      "name": "Bild-zu-Video Standard",
+      "lora": null,
+      "image": "ref_rabbit.jpg",
+      "image_noise_scale": 0.15,
+      "resolution": [
+        960,
+        544
+      ],
+      "frames": 49,
+      "inference_steps": 50,
+      "guidance": 6.0,
+      "seed": 42,
+      "output_path": "outputs/test_C/rabbit_i2v_standard.mp4",
+      "status": "pending",
+      "render_time_s": null,
+      "scores": {
+        "rabbit_sharpness": null,
+        "fur_quality": null,
+        "anatomy": null,
+        "rabbit_stability": null,
+        "background_stability": null,
+        "noise_inv": null,
+        "flicker_inv": null,
+        "motion_naturalness": null,
+        "lake_quality": null,
+        "overall": null
+      },
+      "avg_score": null,
+      "notes": ""
+    },
+    {
+      "test_id": "D",
+      "name": "Bild-zu-Video starke Konditionierung",
+      "lora": null,
+      "image": "ref_rabbit.jpg",
+      "image_noise_scale": 0.05,
+      "resolution": [
+        960,
+        544
+      ],
+      "frames": 49,
+      "inference_steps": 50,
+      "guidance": 5.0,
+      "seed": 42,
+      "output_path": "outputs/test_D/rabbit_i2v_strong.mp4",
+      "status": "pending",
+      "render_time_s": null,
+      "scores": {
+        "rabbit_sharpness": null,
+        "fur_quality": null,
+        "anatomy": null,
+        "rabbit_stability": null,
+        "background_stability": null,
+        "noise_inv": null,
+        "flicker_inv": null,
+        "motion_naturalness": null,
+        "lake_quality": null,
+        "overall": null
+      },
+      "avg_score": null,
+      "notes": ""
+    },
+    {
+      "test_id": "E",
+      "name": "Upscaling Real-ESRGAN",
+      "base_test": null,
+      "output_path": "outputs/test_E/",
+      "upscale_method": "RealESRGAN_x4plus_anime_6B outscale=2",
+      "target_resolution": [
+        1920,
+        1088
+      ],
+      "status": "pending",
+      "scores": {
+        "sharpness_gain": null,
+        "artifact_inv": null,
+        "overall": null
+      },
+      "notes": ""
+    },
+    {
+      "test_id": "F",
+      "name": "Frame-Interpolation RIFE v4.6",
+      "base_test": null,
+      "output_path": "outputs/test_F/",
+      "interpolation_method": "RIFE v4.6",
+      "orig_fps": 8,
+      "target_fps": 30,
+      "status": "pending",
+      "scores": {
+        "smoothness": null,
+        "artifact_inv": null,
+        "overall": null
+      },
+      "notes": ""
+    },
+    {
+      "test_id": "G",
+      "name": "Finales Ergebnis: I2V + ESRGAN + RIFE",
+      "base_test": "C",
+      "output_path": "outputs/test_G/",
+      "pipeline": "I2V 960x544 \u2192 ESRGAN 1920x1088 \u2192 RIFE 30fps",
+      "status": "pending",
+      "final_resolution": [
+        1920,
+        1088
+      ],
+      "final_fps": 30,
+      "scores": {
+        "rabbit_sharpness": null,
+        "fur_quality": null,
+        "anatomy": null,
+        "rabbit_stability": null,
+        "background_stability": null,
+        "noise_inv": null,
+        "flicker_inv": null,
+        "motion_naturalness": null,
+        "lake_quality": null,
+        "overall": null
+      },
+      "avg_score": null,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python virtual environments and generated data
+.venv/
+backend/.venv/
+daten/generated/
+.dev-pids.json
+
+# Python caches and tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Pipeline outputs
+ausgaben/
+code/backend/output/
+code/backend/.venv/
+modelle/
+
+# Incomplete yt-dlp downloads
+*.part
+
+# Lokale KI/ComfyUI Installation
+.comfyui-pid.json
+code/tools/ComfyUI/

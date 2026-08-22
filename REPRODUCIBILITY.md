@@ -1,0 +1,241 @@
+# Reproducibility Guide
+
+Schritt-für-Schritt-Anleitung, um Code, Umgebung, Modelle und Datengrundlage dieses Projekts auf
+einer neuen Maschine vollständig nachzubauen: Audio-Pipeline (MusicGen + LoRA), Video-Pipeline
+(LTX-Video + LoRA) und die gemeinsame Studio-Website.
+
+Alle Versions- und Hardwareangaben sind aus der tatsächlich genutzten Entwicklungsumgebung
+übernommen (Stand siehe [`audio-pipeline/requirements.txt`](audio-pipeline/requirements.txt)), keine
+Schätzungen.
+
+**Bewusst nicht Teil dieser Anleitung:** die konkreten YouTube-MP3/Video-Rohquellen und die daraus
+gebauten Trainingsdatensätze. Das sind fremde, urheberrechtlich geschützte Inhalte, die nicht
+mitgeliefert werden. Schritt 7 beschreibt, wie man sich eine eigene, gleichwertige Quellenbasis
+beschafft, ohne die konkreten Originaldateien zu benötigen.
+
+## Inhalt
+
+1. [Code](#1-code)
+2. [System-Voraussetzungen](#2-system-voraussetzungen)
+3. [Python-Umgebung (gemeinsam für Audio + Video)](#3-python-umgebung-gemeinsam-für-audio--video)
+4. [Basismodelle herunterladen](#4-basismodelle-herunterladen)
+5. [Frontend](#5-frontend)
+6. [Backend starten](#6-backend-starten)
+7. [Eigene Datengrundlage statt der Original-Quellen](#7-eigene-datengrundlage-statt-der-original-quellen)
+8. [Audio-Pipeline: Funktionsprüfung und typische Abläufe](#8-audio-pipeline-funktionsprüfung-und-typische-abläufe)
+9. [Video-Pipeline: typische Abläufe](#9-video-pipeline-typische-abläufe)
+10. [Bekannte Einschränkungen der Reproduzierbarkeit](#10-bekannte-einschränkungen-der-reproduzierbarkeit)
+
+## 1. Code
+
+Ein einzelnes Repository mit drei Teilprojekten:
+
+```text
+audio-pipeline/    Python — Datenerfassung, Audioverarbeitung, MusicGen+LoRA, Backend
+video-pipeline/    Python — LTX-Video-LoRA-Training, Sample-/GIF-Generierung
+frontend/          React/TypeScript — Studio-Weboberfläche
+```
+
+```bash
+git clone <url-dieses-repositories>
+cd <repo-name>
+```
+
+`audio-pipeline/` und `video-pipeline/` teilen sich **eine** Python-Umgebung (siehe Schritt 3);
+`frontend/` hat eine eigene Node-Umgebung.
+
+## 2. System-Voraussetzungen
+
+| Voraussetzung | Getestete Version | Wofür |
+|---|---|---|
+| Betriebssystem | Ubuntu 22.04.5 LTS, Kernel 6.8 | — |
+| NVIDIA-GPU + Treiber | RTX A6000 (48 GB VRAM), Treiber 580.173.02 | MusicGen-/LTX-Video-Training und -Generierung |
+| Python | 3.11 (3.11.0rc1) | Backend, beide Pipelines |
+| Node.js | 22.x (v22.22.3) | Frontend (Vite/React) |
+| ffmpeg | 4.4.2 (`apt install ffmpeg`) | Audio-/Video-Dekodierung, Zusammenschnitt |
+
+Ein separates CUDA-Toolkit ist **nicht** nötig — die CUDA-Runtime kommt über die `nvidia-cu*`-Pakete
+in `requirements.txt` mit. Nur der GPU-Treiber muss installiert sein.
+
+Mindestens ~16 GB freier VRAM werden für MusicGen-Melody-Large-LoRA-Training empfohlen (siehe
+`vram_profile_for_hardware()` in `audio-pipeline/code/src/Training/musicgen_steuerung.py`: unter
+24 GB gilt als Notfallprofil, 24–39 GB als Fallback, ab 40 GB als empfohlenes Profil). Für
+LTX-Video-Training wurde durchgehend mit der vollen 48-GB-Karte gearbeitet; wiederholte
+OOM-Vorfälle bei knapperem VRAM sind im Projektverlauf dokumentiert (siehe
+`video-pipeline/dokumentation/02_verlauf.md`).
+
+## 3. Python-Umgebung (gemeinsam für Audio + Video)
+
+```bash
+cd audio-pipeline
+python3.11 -m venv .venv
+.venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements.txt
+```
+
+`requirements.txt` enthält alle Pakete beider Pipelines, exakt gepinnt per `pip freeze` aus der
+laufenden Entwicklungsumgebung — u. a. `audiocraft`, `transformers`, `xformers`, `librosa`, `demucs`,
+`yt-dlp` (Audio) sowie `diffusers` und `ltxv_trainer` (per Git-Commit gepinnt, aus
+`github.com/Lightricks/LTX-Video-Trainer`), `decord`, `opencv-python`, `gradio` (Video). Das
+`--extra-index-url` ist nötig, weil `torch`/`torchaudio` als `+cu124`-Build referenziert sind, der nur
+im PyTorch-eigenen Wheel-Index liegt, nicht auf PyPI selbst.
+
+Die `.venv` liegt bewusst unter `audio-pipeline/.venv` — alle Befehle für **beide** Pipelines nutzen
+diesen einen Interpreter (Beispiele unten entsprechend mit relativem Pfad `../audio-pipeline/.venv/bin/python`,
+wenn sie aus `video-pipeline/` heraus laufen, oder man aktiviert die Umgebung einmal mit
+`source audio-pipeline/.venv/bin/activate`).
+
+## 4. Basismodelle herunterladen
+
+Modelle werden **nicht automatisch beim ersten Gebrauch** geladen (Ausnahme: LTX-Video, siehe 4d) —
+sie müssen vorher explizit lokal bereitgestellt werden.
+
+**4a. MusicGen Melody Large (Pflicht für die Audio-Pipeline, ca. 15 GB):**
+
+```bash
+audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/setup_musicgen_melody_large.py --download
+```
+
+Lädt `facebook/musicgen-melody-large` von Hugging Face nach
+`audio-pipeline/daten/modelle/musicgen/facebook_musicgen_melody_large/`. Ohne `--download` zeigt das
+Skript nur Status und nötigen Befehl an, lädt aber nichts.
+
+**4b. CLAP (semantische Genre-Prüfung, ca. 590 MB, optional):**
+
+```bash
+audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download clap
+```
+
+Lädt `laion/clap-htsat-unfused` nach `audio-pipeline/daten/modelle/audio_analyse/clap_htsat_unfused/`.
+Aussagekraft eingeschränkt (nur ~40 % Trefferquote im Test, siehe
+`audio-pipeline/MUSIKMODELL_VERSUCHSDOKUMENTATION.md`, Abschnitt 10.1) — deshalb produktiv nicht aktiv.
+
+**4c. Demucs (optional, nur für manuelle Stem-Analyse):**
+
+```bash
+audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download demucs
+```
+
+**4d. LTX-Video 13B (Video-Pipeline):** wird von `ltxv_trainer` beim ersten Aufruf von
+`video-pipeline/pipeline/v003_manual/generate.py` automatisch von Hugging Face geladen
+(`LtxvModelVersion.LTXV_13B_097_DEV`) und im Standard-HF-Cache abgelegt — kein gesonderter
+Setup-Schritt, dafür ein einmaliger, langsamerer erster Lauf.
+
+**4e. RealESRGAN-Gewichte (Video-Nachbearbeitung/Upscaling, optional):** müssen manuell von der
+[offiziellen Real-ESRGAN-Release-Seite](https://github.com/xinntao/Real-ESRGAN/releases) geladen und
+unter `video-pipeline/lofi_pipeline/models/RealESRGAN_x4plus_anime_6B.pth` abgelegt werden.
+
+## 5. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev -- --port 8080
+```
+
+`package.json`/`package-lock.json` (bzw. `bun.lock`) übernehmen für Node bereits die Rolle von
+`requirements.txt` — kein separater Schritt nötig. `.env` enthält nur öffentliche, clientseitig
+sichere Supabase-Werte und kann unverändert übernommen werden.
+
+## 6. Backend starten
+
+```bash
+cd audio-pipeline
+.venv/bin/python code/src/Pipeline/web_api.py
+```
+
+Reiner `http.server` ohne Framework, Port 8000. Website danach unter `http://localhost:8080`
+erreichbar (Frontend spricht die feste Backend-Adresse aus `frontend/src/lib/settings.ts` an).
+
+Die Video-Pipeline hat eine eigene, unabhängige lokale Oberfläche für Bewertung/Feedback:
+
+```bash
+audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/feedback_ui.py
+```
+
+Standardmäßig auf Port 7860.
+
+## 7. Eigene Datengrundlage statt der Original-Quellen
+
+### Audio
+
+```bash
+cd audio-pipeline
+.venv/bin/python code/start.py --top10          # Top10-Quellensuche pro Genre
+```
+
+Danach in der Website unter "Quellen" die gefundenen Videos importieren, oder gesammelt per
+Backend-Aktion `import_pending`. Das baut über `code/src/Crawler/quellen_suche.py` (YouTube-Suche +
+Lizenzfilter „no copyright") eine eigene, gleichwertige Quellenbasis auf, ohne dass die
+Original-Dateien benötigt werden. Aus den daraus erzeugten Clips lässt sich der Datensatz
+anschließend genauso aufbauen wie im dokumentierten Verlauf in
+`audio-pipeline/MUSIKMODELL_VERSUCHSDOKUMENTATION.md`.
+
+Bekannte Einschränkung: Massenimporte ohne Cookies schlagen häufig mit „Sign in to confirm you're not
+a bot" fehl (YouTube-Bot-Sperre). Ein Workaround (`--cookies-from-browser`) ist zum Stand dieses
+Dokuments noch nicht produktiv eingebaut.
+
+### Video
+
+Referenzclips für neue Szenarien werden manuell recherchiert und unter
+`video-pipeline/lofi_pipeline/references/source_videos/` abgelegt; Nutzungsrechte sind vorab gegen
+`video-pipeline/lofi_pipeline/references/legal/source_rights_checklist.md` zu prüfen. Ein neues
+Szenario danach wie in Schritt 9 beschrieben anlegen.
+
+## 8. Audio-Pipeline: Funktionsprüfung und typische Abläufe
+
+Kurzer Smoke-Test ohne vollständigen Trainingslauf:
+
+```bash
+audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/lora.py --nur-pruefen
+```
+
+Prüft Datensatz, Modellpfade und schreibt den geplanten Trainingsbefehl, ohne zu trainieren — guter
+erster Nachweis, dass Umgebung, Modelle und Datensatz-Pfade korrekt zusammenspielen.
+
+Weitere Befehle (vollständige Liste inkl. Longform-Generierung und Referenzvergleich in
+[`audio-pipeline/README.md`](audio-pipeline/README.md#15-typische-arbeitsabläufe)):
+
+```bash
+audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --status
+audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --clips-5000
+audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --lora-training
+audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --testaudios
+audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --referenzvergleich
+```
+
+## 9. Video-Pipeline: typische Abläufe
+
+Vollständige Anleitung: [`video-pipeline/dokumentation/05_einrichtung.md`](video-pipeline/dokumentation/05_einrichtung.md).
+Umgebungsvariablen für stabiles Training (wiederholte OOM-Vorfälle ohne diese Einstellungen):
+
+```bash
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export LTXV_VRAM_LIMIT_FRACTION=0.80
+```
+
+```bash
+# neues Szenario: erst scenario.yaml + Referenzclips anlegen, dann
+audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/preprocess_scenario.py --scenario <name>
+audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/train_lora.py --scenario <name> --round 1
+audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/generate_samples.py --scenario <name> --round 1 --gif
+audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/feedback.py --latest
+```
+
+## 10. Bekannte Einschränkungen der Reproduzierbarkeit
+
+- **xFormers-Warnung:** Beim Trainingsstart erscheint durchgehend eine `xFormers`-Warnung
+  (inkompatibler Build gegen die installierte PyTorch/CUDA-Version). Bekannt und harmlos — der
+  einzig kompatible `xformers`-Build für die von `audiocraft` vorgeschriebene Versionsobergrenze
+  (`<0.0.23`) ist bereits installiert; ein Upgrade ist nicht möglich, ohne `audiocraft` selbst zu
+  brechen. Details: `audio-pipeline/MUSIKMODELL_VERSUCHSDOKUMENTATION.md`, Abschnitt 10.4.
+- **Keine bit-identischen Ausgaben:** MusicGen- und LTX-Video-Generierung sind stochastisch
+  (Sampling); dieselbe Konfiguration erzeugt vergleichbare, aber keine identischen Audios/Videos.
+  Reproduzierbar sind Pipeline, Konfiguration und Bewertungsmethodik — nicht einzelne Sample-Bytes.
+- **Quellenverfügbarkeit:** Da Trainingsquellen live von YouTube bezogen werden, kann sich die
+  konkret verfügbare Quellenbasis zwischen zwei Nachbau-Zeitpunkten unterscheiden (gelöschte Videos,
+  neue Top-Treffer).
+- **CLAP-Genreprüfung** hat in Tests nur ~40 % Trefferquote erreicht und läuft deshalb nicht als
+  produktiver Bewertungsschritt (nur optional verfügbar, siehe Schritt 4b).
+- **Kein Szenario der Video-Pipeline gilt als vollständig trainiert**, siehe
+  `video-pipeline/dokumentation/04_stand_szenarien.md` für den Stand je Szenario und bekannte
+  Bild-/Objektfehler (z. B. `rabbit_lake`).

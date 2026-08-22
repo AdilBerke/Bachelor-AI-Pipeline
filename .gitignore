@@ -1,0 +1,87 @@
+# This repo ships code, config and documentation only.
+# Large/generated artifacts (models, datasets, checkpoints, media, envs) stay local,
+# see REPRODUCIBILITY.md for how to regenerate or download them.
+
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+.vinxi/
+.tanstack/
+.nitro/
+*.local
+
+# Secrets (frontend/.env is intentionally tracked - public Supabase anon key only)
+.env
+!/frontend/.env
+*.env.local
+audio-pipeline/code/configs/env/.env
+audio-pipeline/code/configs/env/.env.local
+audio-pipeline/code/configs/youtube_cookies.txt
+
+# Audio-pipeline local data/models/training outputs (see REPRODUCIBILITY.md, Schritt 4/6/7)
+audio-pipeline/daten/
+audio-pipeline/training/
+audio-pipeline/bewertungen/
+audio-pipeline/ausgaben/
+audio-pipeline/modelle/
+audio-pipeline/archiv/
+audio-pipeline/code/werkzeuge/
+audio-pipeline/code/tools/
+
+# Video-pipeline local data/checkpoints/generated media (see REPRODUCIBILITY.md, Schritt 4/9)
+video-pipeline/lofi_pipeline/scenarios/
+video-pipeline/lofi_pipeline/base_checkpoints/
+video-pipeline/lofi_pipeline/models/
+video-pipeline/lofi_pipeline/references/source_videos/
+video-pipeline/training/
+video-pipeline/training_runs/
+video-pipeline/daten/
+video-pipeline/logs/
+
+# Generated ML/runtime folders (either pipeline)
+checkpoints/
+outputs/
+runs/
+wandb/
+lightning_logs/
+
+# Media/model binaries stay local by default
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.aac
+*.ogg
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.gif
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.gguf
+
+# Logs, temp
+logs/
+*.log
+*.part
+
+# Editor/system noise
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.sw?

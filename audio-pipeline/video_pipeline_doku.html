@@ -1,0 +1,911 @@
+
+<title>Lo-Fi Video Pipeline</title>
+<style>
+  /* ── Tokens ──────────────────────────────────────────────────── */
+  :root {
+    --bg:        #F4F2EE;
+    --surface:   #ECEAE6;
+    --surface2:  #E2DFD9;
+    --border:    #D0CCBF;
+    --text:      #1B1828;
+    --muted:     #6B6478;
+    --accent:    #C4883A;
+    --violet:    #6B52C0;
+    --code-bg:   #E8E5F0;
+    --tag-bg:    #E0DBF0;
+    --tag-text:  #5342A0;
+    --good:      #2A7A55;
+    --warn:      #9A6B10;
+    --nav-bg:    #1B1828;
+    --nav-text:  #C8C0E0;
+    --nav-accent:#C4883A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #111020;
+      --surface:   #1A1830;
+      --surface2:  #221F38;
+      --border:    #2E2A48;
+      --text:      #EDE9F7;
+      --muted:     #8C82AA;
+      --accent:    #C4883A;
+      --violet:    #9B84E8;
+      --code-bg:   #0D0C1A;
+      --tag-bg:    #2A2250;
+      --tag-text:  #B4A4E8;
+      --good:      #4AAB7A;
+      --warn:      #D4A040;
+      --nav-bg:    #0D0C18;
+      --nav-text:  #A89CC8;
+      --nav-accent:#C4883A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:        #111020;
+    --surface:   #1A1830;
+    --surface2:  #221F38;
+    --border:    #2E2A48;
+    --text:      #EDE9F7;
+    --muted:     #8C82AA;
+    --accent:    #C4883A;
+    --violet:    #9B84E8;
+    --code-bg:   #0D0C1A;
+    --tag-bg:    #2A2250;
+    --tag-text:  #B4A4E8;
+    --good:      #4AAB7A;
+    --warn:      #D4A040;
+    --nav-bg:    #0D0C18;
+    --nav-text:  #A89CC8;
+    --nav-accent:#C4883A;
+  }
+
+  /* ── Reset + Base ────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; font-size: 16px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    padding-bottom: 6rem;
+  }
+
+  /* ── Nav ─────────────────────────────────────────────────────── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--nav-bg);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  nav::-webkit-scrollbar { display: none; }
+  .nav-brand {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--nav-accent);
+    white-space: nowrap;
+    padding: 0.85rem 1.5rem 0.85rem 0;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    margin-right: 1rem;
+  }
+  nav a {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--nav-text);
+    text-decoration: none;
+    padding: 0.85rem 0.75rem;
+    white-space: nowrap;
+    transition: color 0.15s;
+    border-bottom: 2px solid transparent;
+  }
+  nav a:hover { color: #fff; }
+  nav a:focus-visible { outline: 2px solid var(--nav-accent); outline-offset: -2px; }
+
+  /* ── Layout ──────────────────────────────────────────────────── */
+  .page { max-width: 860px; margin: 0 auto; padding: 3rem 2rem 0; }
+
+  /* ── Hero ────────────────────────────────────────────────────── */
+  .hero {
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.9rem;
+  }
+  .hero h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    line-height: 1.18;
+    color: var(--text);
+    margin-bottom: 1rem;
+  }
+  .hero p {
+    color: var(--muted);
+    max-width: 58ch;
+    font-size: 0.95rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.4rem;
+    flex-wrap: wrap;
+  }
+  .meta-chip {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .meta-chip strong { color: var(--text); font-weight: 600; }
+
+  /* ── Sections ────────────────────────────────────────────────── */
+  section { margin-bottom: 3.5rem; }
+  .section-label {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.6rem;
+  }
+  h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    color: var(--text);
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin: 1.6rem 0 0.5rem;
+  }
+  p { max-width: 68ch; color: var(--text); }
+  p + p { margin-top: 0.75rem; }
+
+  /* ── Tables ──────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin-top: 1rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.865rem;
+  }
+  thead tr {
+    background: var(--surface2);
+  }
+  th {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.6rem 0.9rem;
+    text-align: left;
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.55rem 0.9rem;
+    border-top: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:hover td { background: var(--surface); }
+  td code {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.8rem;
+    background: var(--code-bg);
+    padding: 0.15em 0.45em;
+    border-radius: 3px;
+    color: var(--violet);
+  }
+
+  /* ── Code blocks ─────────────────────────────────────────────── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text);
+    margin-top: 0.75rem;
+  }
+  pre .c { color: var(--muted); }
+  pre .kw { color: var(--violet); }
+  pre .str { color: var(--good); }
+  pre .num { color: var(--accent); }
+  pre .flag { color: var(--accent); }
+
+  /* ── Tags ────────────────────────────────────────────────────── */
+  .tag {
+    display: inline-block;
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.68rem;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .tag-amber {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+  }
+  .tag-green {
+    background: color-mix(in srgb, var(--good) 15%, transparent);
+    color: var(--good);
+  }
+
+  /* ── Info card ───────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+    margin-top: 1rem;
+  }
+  .card-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.3rem 0;
+  }
+  .card-row + .card-row { border-top: 1px solid var(--border); }
+  .card-key {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.73rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    min-width: 160px;
+    flex-shrink: 0;
+  }
+  .card-val {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+
+  /* ── Pipeline flow SVG wrapper ───────────────────────────────── */
+  .flow-wrap {
+    margin-top: 1.4rem;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 1.5rem 1rem;
+  }
+  .flow-wrap svg { display: block; margin: 0 auto; min-width: 640px; }
+
+  /* ── Metric bars ─────────────────────────────────────────────── */
+  .metrics-grid { display: grid; gap: 0.75rem; margin-top: 1rem; }
+  .metric-row { display: grid; grid-template-columns: 13rem 1fr 3.5rem; align-items: center; gap: 0.75rem; }
+  .metric-name {
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+  .metric-subtext {
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: block;
+    margin-top: 0.1rem;
+  }
+  .metric-bar-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .metric-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--accent);
+  }
+  .metric-pct {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Scenario grid ───────────────────────────────────────────── */
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  .scenario-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+  }
+  .scenario-id {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--violet);
+    margin-bottom: 0.3rem;
+  }
+  .scenario-desc { font-size: 0.8rem; color: var(--muted); }
+  .scenario-badge {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  /* ── Comparison grid ─────────────────────────────────────────── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+  }
+  .compare-card h4 {
+    font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace;
+    font-size: 0.73rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+  .param-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    padding: 0.3rem 0;
+    border-top: 1px solid var(--border);
+    gap: 1rem;
+  }
+  .param-row:first-of-type { border-top: none; }
+  .param-key { color: var(--muted); flex-shrink: 0; }
+  .param-val { font-family: ui-monospace, 'Cascadia Code', 'SF Mono', monospace; color: var(--text); text-align: right; }
+  .param-val.changed { color: var(--accent); font-weight: 600; }
+
+  @media (max-width: 600px) {
+    .page { padding: 2rem 1rem 0; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .metric-row { grid-template-columns: 1fr 3.5rem; }
+    .metric-row .metric-name { grid-column: 1 / -1; }
+  }
+</style>
+
+<nav>
+  <div class="nav-brand">Lo-Fi Video Pipeline</div>
+  <a href="#modell">Modell</a>
+  <a href="#szenarien">Szenarien</a>
+  <a href="#training">Training</a>
+  <a href="#generierung">Generierung</a>
+  <a href="#postprocessing">Post-Processing</a>
+  <a href="#metriken">Metriken</a>
+  <a href="#pakete">Pakete</a>
+  <a href="#dateien">Dateien</a>
+</nav>
+
+<div class="page">
+
+  <div class="hero">
+    <div class="hero-eyebrow">Inan Deniz Arduc · Bachelorarbeit · Maschinenbau M.Sc.</div>
+    <h1>Lo-Fi Video Pipeline</h1>
+    <p>Vollständige technische Referenz — Modelle, Parameter, Bewertungsmetriken, Pakete und Ablauf der visuellen Loop-Generierung.</p>
+    <div class="hero-meta">
+      <span class="meta-chip">Modell <strong>LTXV 13B 0.9.7-dev</strong></span>
+      <span class="meta-chip">LoRA-Rank <strong>16 / 32</strong></span>
+      <span class="meta-chip">Szenarien <strong>14</strong></span>
+      <span class="meta-chip">Post-Processing <strong>RIFE + Real-ESRGAN</strong></span>
+    </div>
+  </div>
+
+  <!-- ── ARCHITEKTUR ─────────────────────────────────────── -->
+  <section id="modell">
+    <div class="section-label">Basis-Modell</div>
+    <h2>LTX-Video 13B 0.9.7-dev</h2>
+    <p>Das Basismodell ist <strong>LTXV_13B_097_DEV</strong> — ein Latent-Diffusion Video-Transformer von Lightricks. Es wird lokal über den <code>ltxv-trainer</code> Stack geladen und mit szenariospezifischen LoRA-Gewichten kombiniert.</p>
+
+    <div class="card">
+      <div class="card-row"><span class="card-key">model_source</span><span class="card-val">LTXV_13B_097_DEV</span></div>
+      <div class="card-row"><span class="card-key">training_mode</span><span class="card-val">lora</span></div>
+      <div class="card-row"><span class="card-key">Pipeline-Klasse</span><span class="card-val">LTXConditionPipeline (ltxv_trainer)</span></div>
+      <div class="card-row"><span class="card-key">Modell-Loader</span><span class="card-val">load_ltxv_components()</span></div>
+      <div class="card-row"><span class="card-key">Text-Encoder</span><span class="card-val">8-Bit quantisiert (load_text_encoder_in_8bit=True)</span></div>
+      <div class="card-row"><span class="card-key">Transformer dtype</span><span class="card-val">torch.bfloat16</span></div>
+      <div class="card-row"><span class="card-key">VAE dtype</span><span class="card-val">torch.bfloat16</span></div>
+      <div class="card-row"><span class="card-key">VAE Tiling</span><span class="card-val">aktiviert (enable_vae_tiling) — reduziert Peak-VRAM beim Decode</span></div>
+      <div class="card-row"><span class="card-key">VRAM-Limit</span><span class="card-val">LTXV_VRAM_LIMIT_FRACTION=0.80</span></div>
+      <div class="card-row"><span class="card-key">PYTORCH_CUDA_ALLOC_CONF</span><span class="card-val">expandable_segments:True</span></div>
+    </div>
+
+    <h3>LoRA — Prinzip</h3>
+    <p>LoRA (Low-Rank Adaptation) fügt trainierbare Rank-Matrizen zu ausgewählten Attention- und Feed-Forward-Schichten des Transformers ein. Alle übrigen Modellgewichte bleiben eingefroren. Pro Szenario und Runde entsteht ein eigenes <code>.safetensors</code>-Checkpoint.</p>
+    <p>Das Basis-LoRA <code>lofi_lora_best.safetensors</code> dient als Startpunkt für alle Szenarien (Runde 1). Folgerunden starten vom letzten Checkpoint der Vorrunde.</p>
+  </section>
+
+  <!-- ── SZENARIEN ──────────────────────────────────────── -->
+  <section id="szenarien">
+    <div class="section-label">Trainingsziele</div>
+    <h2>Szenarien</h2>
+    <p>Jedes Szenario hat eine eigene <code>scenario.yaml</code> mit Prompt, negativem Prompt, Auflösung, Seed, Inferenz-Steps und Post-Processing-Ziel.</p>
+
+    <div class="scenario-grid">
+      <div class="scenario-card">
+        <div class="scenario-id">rabbit_lake</div>
+        <div class="scenario-desc">Zwei Hasen an dunklem See bei Nacht. Lo-Fi Anime, Laterne, Sternreflexionen. 9 Runden.</div>
+        <div class="scenario-badge"><span class="tag">832×480</span><span class="tag">97 Frames</span><span class="tag">8fps</span></div>
+      </div>
+      <div class="scenario-card">
+        <div class="scenario-id">rainy_window</div>
+        <div class="scenario-desc">Regenfenster-Szene. Am weitesten trainiert (14 Runden). Kein Checkpoint gilt als fertig.</div>
+        <div class="scenario-badge"><span class="tag">14 Runden</span><span class="tag tag-amber">aktiv</span></div>
+      </div>
+      <div class="scenario-card">
+        <div class="scenario-id">rabbit_lake_v2</div>
+        <div class="scenario-desc">Verbesserte Version: Rank 32, FF-Module, LR 5e-5, mehr Bewegungs-Keywords.</div>
+        <div class="scenario-badge"><span class="tag">base_lora_v2</span><span class="tag tag-amber">neu</span></div>
+      </div>
+      <div class="scenario-card">
+        <div class="scenario-id">golden_hour_lake</div>
+        <div class="scenario-desc">See bei goldener Stunde. 6 Runden.</div>
+        <div class="scenario-badge"><span class="tag">6 Runden</span></div>
+      </div>
+      <div class="scenario-card">
+        <div class="scenario-id">lofi_girl_desk</div>
+        <div class="scenario-desc">Schreibtisch-Szene, schreibende Figur. Ursprüngliches Testmodell.</div>
+        <div class="scenario-badge"><span class="tag">960×544</span></div>
+      </div>
+      <div class="scenario-card">
+        <div class="scenario-id">weitere</div>
+        <div class="scenario-desc">cafe_scene, library_study, train_window, hase_1/2, rabbit_2 u.a. — frühe Experimente.</div>
+        <div class="scenario-badge"><span class="tag">explorativ</span></div>
+      </div>
+    </div>
+
+    <h3>scenario.yaml — Schlüsselfelder</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feld</th><th>rabbit_lake Wert</th><th>Funktion</th></tr></thead>
+        <tbody>
+          <tr><td><code>frames</code></td><td>97</td><td>Anzahl generierter Video-Frames</td></tr>
+          <tr><td><code>fps</code></td><td>8</td><td>Ausgabe-Framerate des Rohvideos</td></tr>
+          <tr><td><code>resolution</code></td><td>[832, 480]</td><td>Training-Auflösung (Trainingsdaten-kompatibel)</td></tr>
+          <tr><td><code>generate_inference_steps</code></td><td>60</td><td>Denoising-Steps bei Inference</td></tr>
+          <tr><td><code>guidance_scale</code></td><td>9.0</td><td>CFG-Skala (stärkere Prompt-Bindung)</td></tr>
+          <tr><td><code>seed</code></td><td>777</td><td>Reproduzierbarer Zufallsstart</td></tr>
+          <tr><td><code>trigger_token</code></td><td>lofi_girl</td><td>LoRA-spezifisches Aktivierungs-Token im Prompt</td></tr>
+          <tr><td><code>prompt</code></td><td>~600 Zeichen</td><td>Detaillierter positiver Prompt mit Animations-Targets</td></tr>
+          <tr><td><code>negative_prompt</code></td><td>~400 Zeichen</td><td>Ausschluss 3D, Photoreal, Statik, Fehlanatomie</td></tr>
+          <tr><td><code>post_processing.method</code></td><td>rife+realesrgan</td><td>Primäres Post-Processing-Verfahren</td></tr>
+          <tr><td><code>post_processing.target_fps</code></td><td>60</td><td>Ziel-Framerate nach Interpolation</td></tr>
+          <tr><td><code>dataset_jsonl</code></td><td>Pfad zu JSONL</td><td>Trainingsdaten-Manifest</td></tr>
+          <tr><td><code>precomputed_dir</code></td><td>scenarios/…/precomputed</td><td>Vorberechnete latente Repräsentationen (spart GPU-Zeit)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── TRAINING ───────────────────────────────────────── -->
+  <section id="training">
+    <div class="section-label">LoRA-Training</div>
+    <h2>Training</h2>
+    <p>Das Training läuft über <code>scripts/train_lora.py</code>, das eine <code>training_config.yaml</code> aus Base-Config und Szenario-Overrides baut und dann <code>tools/LTX-Video-Trainer/scripts/train.py</code> (Accelerate) als Subprocess startet.</p>
+
+<pre><span class="c"># Neue Runde starten (Runde 1)</span>
+python scripts/train_lora.py --scenario rabbit_lake --round 1 --steps 100
+
+<span class="c"># Aus vorherigem Checkpoint fortsetzen</span>
+python scripts/train_lora.py --scenario rabbit_lake --round 2 --resume
+
+<span class="c"># Metric-Watcher parallel starten</span>
+python scripts/metric_watcher.py \
+  --scenario rabbit_lake_v2 --round 1 \
+  --target-overall 0.82 --target-motion 0.50 --target-sharpness 0.22</pre>
+
+    <h3>Checkpoint-Logik</h3>
+    <p>Runde 1 startet vom globalen Basis-Checkpoint (<code>lofi_lora_best.safetensors</code>). Alle weiteren Runden starten automatisch vom letzten <code>lora_weights_step_NNNNN.safetensors</code> der Vorrunde (<code>find_auto_checkpoint()</code>).</p>
+
+    <h3>LoRA-Konfigurationen im Vergleich</h3>
+    <div class="compare-grid">
+      <div class="compare-card">
+        <h4>base_lora.yaml</h4>
+        <div class="param-row"><span class="param-key">rank / alpha</span><span class="param-val">16 / 16</span></div>
+        <div class="param-row"><span class="param-key">target_modules</span><span class="param-val">to_k, to_q, to_v, to_out.0</span></div>
+        <div class="param-row"><span class="param-key">learning_rate</span><span class="param-val">1e-4</span></div>
+        <div class="param-row"><span class="param-key">steps (default)</span><span class="param-val">100</span></div>
+        <div class="param-row"><span class="param-key">checkpoint interval</span><span class="param-val">alle 10 Steps</span></div>
+        <div class="param-row"><span class="param-key">optimizer</span><span class="param-val">adamw8bit</span></div>
+        <div class="param-row"><span class="param-key">scheduler</span><span class="param-val">cosine</span></div>
+        <div class="param-row"><span class="param-key">mixed precision</span><span class="param-val">bf16</span></div>
+        <div class="param-row"><span class="param-key">grad checkpointing</span><span class="param-val">aktiviert</span></div>
+      </div>
+      <div class="compare-card">
+        <h4>base_lora_v2.yaml <span class="tag tag-amber">rabbit_lake_v2</span></h4>
+        <div class="param-row"><span class="param-key">rank / alpha</span><span class="param-val changed">32 / 32</span></div>
+        <div class="param-row"><span class="param-key">target_modules</span><span class="param-val changed">+ ff.net.0.proj, ff.net.2</span></div>
+        <div class="param-row"><span class="param-key">learning_rate</span><span class="param-val changed">5e-5</span></div>
+        <div class="param-row"><span class="param-key">steps (default)</span><span class="param-val changed">200</span></div>
+        <div class="param-row"><span class="param-key">checkpoint interval</span><span class="param-val changed">alle 5 Steps</span></div>
+        <div class="param-row"><span class="param-key">optimizer</span><span class="param-val">adamw8bit</span></div>
+        <div class="param-row"><span class="param-key">scheduler</span><span class="param-val">cosine</span></div>
+        <div class="param-row"><span class="param-key">mixed precision</span><span class="param-val">bf16</span></div>
+        <div class="param-row"><span class="param-key">grad checkpointing</span><span class="param-val">aktiviert</span></div>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem; font-size:0.83rem; color:var(--muted);">
+      Rank 32 erhöht die Kapazität für feinere Stil- und Bewegungsmuster. Die FF-Module (Feed-Forward) verbessern Textur- und Farbkonsistenz. LR 5e-5 verhindert Overfitting bei höherem Rank. Kürzeres Checkpoint-Intervall (5) ermöglicht feinere Metric-Watcher-Eingriffe.
+    </p>
+
+    <h3>Trainingsdaten-Preprocessing</h3>
+    <div class="card">
+      <div class="card-row"><span class="card-key">Script</span><span class="card-val">scripts/preprocess_scenario.py</span></div>
+      <div class="card-row"><span class="card-key">Trainer-Script</span><span class="card-val">tools/LTX-Video-Trainer/scripts/preprocess_dataset.py</span></div>
+      <div class="card-row"><span class="card-key">Output</span><span class="card-val">scenarios/{id}/precomputed/ — latente Repräsentationen</span></div>
+      <div class="card-row"><span class="card-key">Wiederverwendung</span><span class="card-val">precomputed_dir direkt in scenario.yaml referenzierbar — spart ~1h</span></div>
+    </div>
+  </section>
+
+  <!-- ── GENERIERUNG ────────────────────────────────────── -->
+  <section id="generierung">
+    <div class="section-label">Inference</div>
+    <h2>Generierung</h2>
+    <p>Die Generierung läuft über <code>scripts/generate_samples.py</code>, das intern <code>pipeline/v003_manual/generate.py</code> aufruft.</p>
+
+<pre><span class="c"># Samples für Runde 4 generieren</span>
+python scripts/generate_samples.py --scenario rainy_window --round 4
+
+<span class="c"># Bestimmten Checkpoint + anderen Seed</span>
+python scripts/generate_samples.py --scenario rainy_window --round 4 \
+  --checkpoint 75 --seed 1337
+
+<span class="c"># Direkt via generate.py (höhere Auflösung)</span>
+python pipeline/v003_manual/generate.py \
+  --lora scenarios/rabbit_lake/rounds/round_08/checkpoints/lora_weights_step_00080.safetensors \
+  --steps 60 --width 960 --height 544 --frames 97 \
+  --guidance-scale 9.0 --seed 777 \
+  --output ausgaben/rabbit_lake_r8_960x544.mp4</pre>
+
+    <h3>generate.py — Parameter</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Parameter</th><th>Standard</th><th>Beschreibung</th></tr></thead>
+        <tbody>
+          <tr><td><code>--lora</code></td><td>None</td><td>Pfad zum LoRA .safetensors (Pflicht für Fine-tuned Output)</td></tr>
+          <tr><td><code>--steps</code></td><td>50</td><td>Denoising-Steps (mehr = schärfer, langsamer)</td></tr>
+          <tr><td><code>--width / --height</code></td><td>960 / 544</td><td>Ausgabe-Auflösung. Training bei 832×480, Inference kann höher</td></tr>
+          <tr><td><code>--frames</code></td><td>97</td><td>Anzahl Frames (~12s bei 8fps)</td></tr>
+          <tr><td><code>--guidance-scale</code></td><td>4.5</td><td>CFG-Stärke. Szenarien nutzen 9.0 für stärkere Prompt-Bindung</td></tr>
+          <tr><td><code>--seed</code></td><td>42</td><td>CUDA-Generator-Seed für Reproduzierbarkeit</td></tr>
+          <tr><td><code>--gpu-fraction</code></td><td>1.0</td><td>GPU-Throttle via Step-Callbacks (0.8 = 80%)</td></tr>
+          <tr><td><code>--prompt</code></td><td>(Skript-intern)</td><td>Überschreibt Szenario-Prompt</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>VRAM-Schätzung</h3>
+    <div class="card">
+      <div class="card-row"><span class="card-key">960×544×97 Frames (default)</span><span class="card-val">~28–32 GB</span></div>
+      <div class="card-row"><span class="card-key">1280×720×97 Frames</span><span class="card-val">~36 GB (Limit: 39 GB)</span></div>
+      <div class="card-row"><span class="card-key">Training 832×480, steps 100</span><span class="card-val">~24–28 GB mit bf16 + 8bit-Encoder</span></div>
+      <div class="card-row"><span class="card-key">rabbit_lake R9</span><span class="card-val">CUDA-OOM → Absturz (zu viele Checkpoints im VRAM)</span></div>
+    </div>
+  </section>
+
+  <!-- ── POST-PROCESSING ────────────────────────────────── -->
+  <section id="postprocessing">
+    <div class="section-label">Nachbearbeitung</div>
+    <h2>Post-Processing Pipeline</h2>
+    <p>Das Rohvideo (8fps, 832–960px) wird in drei Stufen zu GIF + HD-MP4 aufbereitet. Der Haupt-Script ist <code>scripts/make_gif.py</code>.</p>
+
+    <div class="flow-wrap">
+      <svg viewBox="0 0 700 130" width="700" height="130" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Post-Processing Ablauf">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="currentColor" opacity="0.4"/>
+          </marker>
+        </defs>
+
+        <!-- Step boxes -->
+        <rect x="10" y="35" width="120" height="60" rx="7" fill="var(--surface2)" stroke="var(--border)" stroke-width="1"/>
+        <text x="70" y="58" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="var(--muted)" letter-spacing="0.1em">INPUT</text>
+        <text x="70" y="73" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10.5" fill="var(--text)" font-weight="600">Raw MP4</text>
+        <text x="70" y="88" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="var(--muted)">8fps · 832–960px</text>
+
+        <line x1="130" y1="65" x2="155" y2="65" stroke="var(--border)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="155" y="20" width="140" height="90" rx="7" fill="color-mix(in srgb, var(--violet) 10%, var(--surface))" stroke="var(--violet)" stroke-width="1" opacity="0.85"/>
+        <text x="225" y="43" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="var(--violet)" letter-spacing="0.1em">SCHRITT 1</text>
+        <text x="225" y="60" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10.5" fill="var(--text)" font-weight="600">minterpolate</text>
+        <text x="225" y="75" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="var(--muted)">ffmpeg MCI / AOBMC</text>
+        <text x="225" y="90" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="var(--muted)">8fps → 24fps</text>
+        <text x="225" y="103" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7.5" fill="var(--violet)" opacity="0.7">oder RIFE v4.6</text>
+
+        <line x1="295" y1="65" x2="320" y2="65" stroke="var(--border)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="320" y="20" width="140" height="90" rx="7" fill="color-mix(in srgb, var(--accent) 12%, var(--surface))" stroke="var(--accent)" stroke-width="1" opacity="0.85"/>
+        <text x="390" y="43" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="var(--accent)" letter-spacing="0.1em">SCHRITT 2</text>
+        <text x="390" y="60" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10.5" fill="var(--text)" font-weight="600">Real-ESRGAN 4×</text>
+        <text x="390" y="75" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="var(--muted)">x4plus_anime_6B</text>
+        <text x="390" y="90" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.5" fill="var(--muted)">→ 2× Ausgabe (1920px)</text>
+        <text x="390" y="103" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7.5" fill="var(--accent)" opacity="0.7">tile=512 · CUDA half</text>
+
+        <line x1="460" y1="65" x2="485" y2="65" stroke="var(--border)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- Split output -->
+        <rect x="485" y="10" width="100" height="48" rx="7" fill="color-mix(in srgb, var(--good) 12%, var(--surface))" stroke="var(--good)" stroke-width="1" opacity="0.85"/>
+        <text x="535" y="32" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="var(--good)" font-weight="600">GIF</text>
+        <text x="535" y="46" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7.5" fill="var(--muted)">15fps · 960px</text>
+        <text x="535" y="57" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7.5" fill="var(--muted)">palettegen+paletteuse</text>
+
+        <rect x="485" y="72" width="100" height="48" rx="7" fill="color-mix(in srgb, var(--good) 12%, var(--surface))" stroke="var(--good)" stroke-width="1" opacity="0.85"/>
+        <text x="535" y="94" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="var(--good)" font-weight="600">MP4 final</text>
+        <text x="535" y="108" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7.5" fill="var(--muted)">1920×1088 · H.264</text>
+        <text x="535" y="119" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7.5" fill="var(--muted)">bt709 · CRF 16</text>
+      </svg>
+    </div>
+
+    <h3>make_gif.py — Optionen</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Flag</th><th>Standard</th><th>Effekt</th></tr></thead>
+        <tbody>
+          <tr><td><code>--no-upscale</code></td><td>—</td><td>Real-ESRGAN überspringen (schneller, schlechtere Qualität)</td></tr>
+          <tr><td><code>--gif-only</code></td><td>—</td><td>Nur GIF ausgeben, kein finales MP4</td></tr>
+          <tr><td><code>--gif-fps</code></td><td>15</td><td>GIF-Framerate</td></tr>
+          <tr><td><code>--gif-width</code></td><td>960</td><td>GIF-Breite in px (640 für kleinere Dateigröße)</td></tr>
+          <tr><td><code>--interp-fps</code></td><td>24</td><td>Ziel-FPS nach minterpolate</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>enhance_video.py — Methoden</h3>
+    <div class="compare-grid">
+      <div class="compare-card">
+        <h4>minterpolate (fallback)</h4>
+        <div class="param-row"><span class="param-key">Tool</span><span class="param-val">ffmpeg</span></div>
+        <div class="param-row"><span class="param-key">Modus</span><span class="param-val">MCI + AOBMC + BIDIR</span></div>
+        <div class="param-row"><span class="param-key">Upscale</span><span class="param-val">lanczos (ffmpeg scale)</span></div>
+        <div class="param-row"><span class="param-key">VRAM</span><span class="param-val">CPU / keiner</span></div>
+        <div class="param-row"><span class="param-key">Qualität</span><span class="param-val">gut, ggf. Ghosting</span></div>
+      </div>
+      <div class="compare-card">
+        <h4>rife <span class="tag tag-amber">empfohlen</span></h4>
+        <div class="param-row"><span class="param-key">Tool</span><span class="param-val">rife-ncnn-vulkan v4.6</span></div>
+        <div class="param-row"><span class="param-key">Modell</span><span class="param-val">rife-v4 (Vulkan GPU)</span></div>
+        <div class="param-row"><span class="param-key">Upscale</span><span class="param-val">Real-ESRGAN x4plus_anime_6B</span></div>
+        <div class="param-row"><span class="param-key">VRAM</span><span class="param-val">~2–4 GB (ESRGAN)</span></div>
+        <div class="param-row"><span class="param-key">Qualität</span><span class="param-val">deutlich flüssiger für Anime</span></div>
+      </div>
+    </div>
+
+    <h3>GIF-Palette-Optimierung</h3>
+    <p style="font-size:0.87rem; color:var(--muted);">GIFs werden mit dem ffmpeg Two-Pass-Verfahren erstellt: erst <code>palettegen</code> (256 Farben, <code>stats_mode=diff</code> — nur Frame-Unterschiede werden analysiert), dann <code>paletteuse</code> mit Bayer-Dithering (<code>bayer_scale=5</code>, <code>diff_mode=rectangle</code>). Das reduziert Artefakte in statischen Bereichen erheblich.</p>
+  </section>
+
+  <!-- ── METRIKEN ───────────────────────────────────────── -->
+  <section id="metriken">
+    <div class="section-label">Qualitätsbewertung</div>
+    <h2>Automatische Bewertungsmetriken</h2>
+    <p>Alle Metriken sind lokal berechnet (kein Download, kein externes Modell). Script: <code>pipeline/realistic_rabbit/evaluate_video.py</code>. Bibliotheken: <code>OpenCV</code> (Farneback-Fluss, Laplacian), <code>scikit-image SSIM</code>, <code>NumPy</code>.</p>
+
+    <h3>Gewichteter Gesamt-Score</h3>
+    <div class="metrics-grid">
+      <div class="metric-row">
+        <div>
+          <span class="metric-name">Temporal SSIM</span>
+          <span class="metric-subtext">Stabilität zwischen aufeinanderfolgenden Frames</span>
+        </div>
+        <div class="metric-bar-track"><div class="metric-bar-fill" style="width:35%"></div></div>
+        <div class="metric-pct">35%</div>
+      </div>
+      <div class="metric-row">
+        <div>
+          <span class="metric-name">Sharpness (Laplacian)</span>
+          <span class="metric-subtext">Schärfe pro Frame, normiert auf 0–1 (Ref: 3000)</span>
+        </div>
+        <div class="metric-bar-track"><div class="metric-bar-fill" style="width:20%"></div></div>
+        <div class="metric-pct">20%</div>
+      </div>
+      <div class="metric-row">
+        <div>
+          <span class="metric-name">Flicker Score (inv.)</span>
+          <span class="metric-subtext">Mittlere Pixeländerung — niedrig = stabil</span>
+        </div>
+        <div class="metric-bar-track"><div class="metric-bar-fill" style="width:20%"></div></div>
+        <div class="metric-pct">20%</div>
+      </div>
+      <div class="metric-row">
+        <div>
+          <span class="metric-name">Motion Score</span>
+          <span class="metric-subtext">Optischer Fluss px/Frame — optimal ~1.5</span>
+        </div>
+        <div class="metric-bar-track"><div class="metric-bar-fill" style="width:10%"></div></div>
+        <div class="metric-pct">10%</div>
+      </div>
+      <div class="metric-row">
+        <div>
+          <span class="metric-name">Color Consistency</span>
+          <span class="metric-subtext">Farbstabilität R/G/B über alle Frames</span>
+        </div>
+        <div class="metric-bar-track"><div class="metric-bar-fill" style="width:10%"></div></div>
+        <div class="metric-pct">10%</div>
+      </div>
+      <div class="metric-row">
+        <div>
+          <span class="metric-name">Brightness Consistency</span>
+          <span class="metric-subtext">Helligkeitsschwankung über alle Frames</span>
+        </div>
+        <div class="metric-bar-track"><div class="metric-bar-fill" style="width:5%"></div></div>
+        <div class="metric-pct">5%</div>
+      </div>
+    </div>
+
+    <h3>Referenzwerte (rabbit_lake R8 Baseline)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metrik</th><th>R8 Wert</th><th>Problem</th><th>Ziel v2</th></tr></thead>
+        <tbody>
+          <tr><td>Temporal SSIM</td><td>0.9938</td><td>— gut</td><td>> 0.85</td></tr>
+          <tr><td>Sharpness (norm.)</td><td>0.1116</td><td style="color:var(--warn)">zu weich</td><td><strong>> 0.22</strong></td></tr>
+          <tr><td>Flicker</td><td>0.0039</td><td>— gut</td><td>< 0.05</td></tr>
+          <tr><td>Motion px/Frame</td><td>0.164</td><td style="color:var(--warn)">fast eingefroren</td><td><strong>> 0.50</strong></td></tr>
+          <tr><td>Gesamt-Score</td><td>0.784</td><td>—</td><td><strong>> 0.82</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Weitere Metriken (evaluate_video.py)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metrik</th><th>Methode</th><th>Gut</th><th>Schlecht</th></tr></thead>
+        <tbody>
+          <tr><td>temporal_ssim.mean</td><td>skimage SSIM, Graustufen, Frame-Paare</td><td>> 0.85</td><td>< 0.70</td></tr>
+          <tr><td>sharpness.normalized</td><td>cv2.Laplacian().var() / 3000</td><td>> 0.30</td><td>< 0.10</td></tr>
+          <tr><td>flicker.mean</td><td>Mittlere |Δ Pixel| zwischen Frames</td><td>< 0.02</td><td>> 0.06</td></tr>
+          <tr><td>motion.mean</td><td>Farneback Opt. Fluss (pyr=0.5, win=15)</td><td>0.5–2.0</td><td>< 0.1 oder > 5</td></tr>
+          <tr><td>motion.smoothness</td><td>1 – min(CV, 2) / 2 (Variationskoeff.)</td><td>nahe 1.0</td><td>< 0.5</td></tr>
+          <tr><td>color_consistency</td><td>max(0, 1 – std(RGB_means) / 30)</td><td>> 0.80</td><td>< 0.50</td></tr>
+          <tr><td>brightness_consistency</td><td>max(0, 1 – std(Helligkeit) / 30)</td><td>> 0.80</td><td>< 0.50</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>metric_watcher.py</h3>
+    <p>Neues Script — läuft parallel zum Training und überwacht neue Checkpoints. Bei jedem neuen <code>.safetensors</code> wird automatisch ein kurzes Test-Video generiert (30 Frames, 30 Steps), bewertet und in <code>metrics_log.json</code> eingetragen. Wenn Ziel-Score erreicht, schreibt es <code>STOP_TRAINING</code> → <code>train_lora.py</code> terminiert sauber.</p>
+  </section>
+
+  <!-- ── PAKETE ─────────────────────────────────────────── -->
+  <section id="pakete">
+    <div class="section-label">Abhängigkeiten</div>
+    <h2>Pakete &amp; Versionen</h2>
+
+    <h3>Python-Umgebung</h3>
+    <p style="margin-bottom:0.75rem;"><code>.venv/bin/python</code> unter <code>/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/.venv</code></p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Paket</th><th>Version</th><th>Rolle</th></tr></thead>
+        <tbody>
+          <tr><td><code>torch</code></td><td>2.6.0+cu124</td><td>GPU-Tensor-Kern, CUDA-Operationen</td></tr>
+          <tr><td><code>torchvision</code></td><td>0.21.0</td><td>Bild-Transformationen</td></tr>
+          <tr><td><code>diffusers</code></td><td>0.33.1</td><td>Scheduler, Pipeline-Basisklassen</td></tr>
+          <tr><td><code>transformers</code></td><td>4.52.2</td><td>Tokenizer, Text-Encoder</td></tr>
+          <tr><td><code>accelerate</code></td><td>1.13.0</td><td>Multi-GPU / Mixed-Precision Training</td></tr>
+          <tr><td><code>ltxv-trainer</code></td><td>0.1.0</td><td>LTXConditionPipeline, load_ltxv_components</td></tr>
+          <tr><td><code>bitsandbytes</code></td><td>0.45.2</td><td>8-Bit-Adam + 8-Bit-Quantisierung Text-Encoder</td></tr>
+          <tr><td><code>realesrgan</code></td><td>0.3.0</td><td>Frame-Upscaling (RealESRGANer)</td></tr>
+          <tr><td><code>basicsr</code></td><td>1.4.2</td><td>RRDBNet-Architektur für Real-ESRGAN</td></tr>
+          <tr><td><code>opencv-python</code></td><td>4.13.0.92</td><td>Frameextraktion, Opt. Fluss, Laplacian, SSIM</td></tr>
+          <tr><td><code>scikit-image</code></td><td>0.26.0</td><td>structural_similarity (SSIM)</td></tr>
+          <tr><td><code>Pillow</code></td><td>11.3.0</td><td>Bild-I/O für ESRGAN-Frames</td></tr>
+          <tr><td><code>numpy</code></td><td>2.3.5</td><td>Array-Operationen in allen Metrik-Funktionen</td></tr>
+          <tr><td><code>PyYAML</code></td><td>6.0.3</td><td>scenario.yaml / config.yaml laden</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Externe Binaries / Modelle</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>Version</th><th>Pfad</th><th>Rolle</th></tr></thead>
+        <tbody>
+          <tr><td>ffmpeg</td><td>4.4.2</td><td>System</td><td>minterpolate, GIF-Palette, Video-I/O, Re-Encode</td></tr>
+          <tr><td>rife-ncnn-vulkan</td><td>2022-10-29</td><td>tools/rife-ncnn-vulkan/</td><td>Optischer-Fluss-Interpolation (GPU, Vulkan)</td></tr>
+          <tr><td>RealESRGAN_x4plus_anime_6B.pth</td><td>—</td><td>tools/realesrgan-models/</td><td>Anime-optimierter 4× Super-Resolution-Upscaler</td></tr>
+          <tr><td>lofi_lora_best.safetensors</td><td>—</td><td>lofi_pipeline/base_checkpoints/</td><td>Globaler Basis-LoRA für alle Szenarien (Runde 1)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>LTX-Video-Trainer (tools/)</h3>
+    <div class="card">
+      <div class="card-row"><span class="card-key">Trainer-Script</span><span class="card-val">tools/LTX-Video-Trainer/scripts/train.py</span></div>
+      <div class="card-row"><span class="card-key">Preprocess-Script</span><span class="card-val">tools/LTX-Video-Trainer/scripts/preprocess_dataset.py</span></div>
+      <div class="card-row"><span class="card-key">Checkpoint-Interval-Logik</span><span class="card-val">tools/LTX-Video-Trainer/src/ltxv_trainer/trainer.py (Zeile 257)</span></div>
+      <div class="card-row"><span class="card-key">Flow-Matching</span><span class="card-val">shifted_logit_normal Timestep-Sampling</span></div>
+    </div>
+  </section>
+
+  <!-- ── DATEIEN ────────────────────────────────────────── -->
+  <section id="dateien">
+    <div class="section-label">Struktur</div>
+    <h2>Datei- &amp; Ordnerstruktur</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pfad</th><th>Typ</th><th>Inhalt</th></tr></thead>
+        <tbody>
+          <tr><td><code>lofi_pipeline/scripts/train_lora.py</code></td><td><span class="tag">Script</span></td><td>Training-CLI, baut config, startet Subprocess</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/generate_samples.py</code></td><td><span class="tag">Script</span></td><td>Inference für eine Runde, ruft generate.py auf</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/make_gif.py</code></td><td><span class="tag">Script</span></td><td>Post-Processing: minterpolate → ESRGAN → GIF + MP4</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/enhance_video.py</code></td><td><span class="tag">Script</span></td><td>minterpolate oder RIFE + ESRGAN per Szenario/Runde</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/metric_watcher.py</code></td><td><span class="tag">Script</span></td><td>Checkpoint-Watcher, auto-evaluiert, schreibt STOP_TRAINING</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/feedback.py</code></td><td><span class="tag">Script</span></td><td>Feedback-Verarbeitung (Noten, Korrekturen)</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/feedback_ui.py</code></td><td><span class="tag">Script</span></td><td>Flask-UI Port 7860 — Bewertung, Generieren, Training</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/compare_rounds.py</code></td><td><span class="tag">Script</span></td><td>Rundenvergleich (Metriken, Prompts)</td></tr>
+          <tr><td><code>lofi_pipeline/scripts/build_report.py</code></td><td><span class="tag">Script</span></td><td>Abschluss-Report pro Szenario</td></tr>
+          <tr><td><code>pipeline/v003_manual/generate.py</code></td><td><span class="tag">Script</span></td><td>Direkte Inference via LTXConditionPipeline</td></tr>
+          <tr><td><code>pipeline/realistic_rabbit/evaluate_video.py</code></td><td><span class="tag">Script</span></td><td>Alle 7 Metriken + Gesamt-Score + Vergleichsmodus</td></tr>
+          <tr><td><code>lofi_pipeline/configs/base_lora.yaml</code></td><td><span class="tag">Config</span></td><td>Standard LoRA (Rank 16, LR 1e-4)</td></tr>
+          <tr><td><code>lofi_pipeline/configs/base_lora_v2.yaml</code></td><td><span class="tag">Config</span></td><td>Verbessert: Rank 32, FF-Module, LR 5e-5</td></tr>
+          <tr><td><code>lofi_pipeline/configs/model_paths.yaml</code></td><td><span class="tag">Config</span></td><td>Pfade zu Python, Trainer, Basis-Checkpoint, Env-Vars</td></tr>
+          <tr><td><code>lofi_pipeline/scenarios/{id}/scenario.yaml</code></td><td><span class="tag">Config</span></td><td>Prompt, Auflösung, Seed, Inference-Steps, Post-Processing</td></tr>
+          <tr><td><code>lofi_pipeline/scenarios/{id}/rounds/round_NN/</code></td><td><span class="tag">Daten</span></td><td>config.yaml, training_config.yaml, checkpoints/, samples/</td></tr>
+          <tr><td><code>lofi_pipeline/scenarios/{id}/precomputed/</code></td><td><span class="tag">Daten</span></td><td>Latente Repräsentationen (einmalig precomputed)</td></tr>
+          <tr><td><code>lofi_pipeline/base_checkpoints/lofi_lora_best.safetensors</code></td><td><span class="tag">Modell</span></td><td>Globaler Basis-LoRA (Startpunkt aller Szenarien)</td></tr>
+          <tr><td><code>tools/realesrgan-models/RealESRGAN_x4plus_anime_6B.pth</code></td><td><span class="tag">Modell</span></td><td>ESRGAN Anime-Upscaler Gewichte</td></tr>
+          <tr><td><code>tools/rife-ncnn-vulkan/…/rife-ncnn-vulkan</code></td><td><span class="tag">Binary</span></td><td>RIFE Vulkan-Binary (Frame-Interpolation)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Output-Struktur pro Runde</h3>
+<pre>scenarios/rabbit_lake/
+  rounds/
+    round_08/
+      config.yaml              <span class="c"># Inferenz-Config</span>
+      training_config.yaml     <span class="c"># vollständige Trainer-Config</span>
+      checkpoints/
+        lora_weights_step_00010.safetensors
+        lora_weights_step_00020.safetensors
+        …
+        lora_weights_step_00080.safetensors   <span class="c"># letzter</span>
+      samples/
+        step_00080_0.mp4       <span class="c"># Rohvideo</span>
+        step_00080_0_final.gif <span class="c"># nach make_gif.py</span>
+        step_00080_0_final.mp4 <span class="c"># HD-MP4</span>
+      metrics_log.json         <span class="c"># metric_watcher Ergebnisse</span></pre>
+  </section>
+
+</div>

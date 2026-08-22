@@ -1,0 +1,2 @@
+daten/raw_audio/*.m4a filter=lfs diff=lfs merge=lfs -text
+daten/raw_audio/*.mp3 filter=lfs diff=lfs merge=lfs -text

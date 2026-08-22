@@ -1,0 +1,54 @@
+name: water_reflection_motion
+element_type: lake_water_surface
+source_reference: "https://www.youtube.com/watch?v=X05wHS4JjH0 — Night Sky Lofi (photorealistic mountain lake with Milky Way reflections)"
+analysis_status: analyzed
+
+visible_motion:
+  - water surface shimmers with very subtle horizontal distortion
+  - moon reflection ripples gently — elongates and contracts slowly
+  - star reflections shimmer as small bright points that wobble slightly
+  - cottage light reflections shimmer vertically in the water
+  - no large waves or visible wind on water
+  - ripple propagates very slowly from center outward
+
+speed: very_slow
+rhythm: smooth_organic_loop
+amplitude: very_low
+direction: primarily_vertical_ripple_with_horizontal_shimmer
+loopability: seamless
+
+timing:
+  shimmer_period: "4-8 seconds per full ripple cycle"
+  reflection_wobble: "2-3 seconds per brightness oscillation in reflections"
+  ripple_propagation: "slow, barely perceptible"
+
+what_to_avoid:
+  - no choppy waves
+  - no fast splashing
+  - no strong wind patterns on water
+  - no completely static mirror-flat water (looks artificial)
+  - no reflections that disappear entirely
+  - no violent distortion
+
+how_to_apply_to_my_scene:
+  - apply subtle vertical displacement to water area (middle ground)
+  - animate moon reflection as slightly elongated wobbling column
+  - make cottage reflections shimmer gently
+  - keep water very dark overall — only reflections carry the motion
+
+prompt_keywords:
+  - gentle water shimmer
+  - soft lake reflection
+  - moon reflection on water
+  - still lake with subtle ripples
+  - dark calm water
+  - shimmering reflections
+  - slow ripple
+
+negative_prompt_keywords:
+  - choppy water
+  - waves
+  - splashing
+  - fast current
+  - flat mirror water
+  - stormy lake

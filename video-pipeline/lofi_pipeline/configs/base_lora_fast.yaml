@@ -1,0 +1,62 @@
+# base_lora_fast.yaml — Schnellere Variante (~35% schneller als v2)
+# rank 16 statt 32, keine FF-Schichten, gleiche LR wie v2
+
+lora:
+  rank: 16
+  alpha: 16
+  dropout: 0.0
+  target_modules: ["to_k", "to_q", "to_v", "to_out.0"]
+
+optimization:
+  learning_rate: 5e-5
+  steps: 200
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  max_grad_norm: 1.0
+  optimizer_type: "adamw8bit"
+  scheduler_type: "cosine"
+  scheduler_params: {}
+  enable_gradient_checkpointing: true
+
+acceleration:
+  mixed_precision_mode: "bf16"
+  quantization: null
+  load_text_encoder_in_8bit: true
+  compile_with_inductor: false
+
+conditioning:
+  mode: "none"
+  first_frame_conditioning_p: 0.1
+
+data:
+  num_dataloader_workers: 0
+
+validation:
+  prompts: []
+  negative_prompt: "worst quality, inconsistent motion, blurry, jittery, distorted"
+  images: null
+  video_dims: [832, 480, 97]
+  seed: 42
+  inference_steps: 30
+  interval: 9999
+  videos_per_prompt: 1
+  guidance_scale: 4.5
+
+checkpoints:
+  interval: 5
+  keep_last_n: -1
+
+flow_matching:
+  timestep_sampling_mode: "shifted_logit_normal"
+  timestep_sampling_params: {}
+
+hub:
+  push_to_hub: false
+  hub_model_id: null
+
+wandb:
+  enabled: false
+  project: "ltxv-lofi-fast"
+  entity: null
+  tags: []
+  log_validation_videos: false

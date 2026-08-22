@@ -1,0 +1,73 @@
+name: star_twinkle_shooting_star
+element_type: night_sky
+source_reference: "https://www.youtube.com/watch?v=X05wHS4JjH0 — Night Sky Lofi Stars Silence Focus"
+analysis_status: analyzed
+
+visible_motion:
+  - individual stars pulse brightness up and down slowly
+  - not all stars animate at once — 3-6 stars twinkle at offset timings
+  - one or two stars may be slightly brighter and pulse more visibly
+  - shooting star: thin bright streak moves diagonally across sky, fades out
+  - no entire sky rotation or movement
+  - moon glow may pulse very subtly (barely noticeable)
+
+speed: slow
+rhythm: calm_offset_loop
+amplitude:
+  star_brightness: low_to_medium  # 20-40% brightness variation
+  shooting_star: fast_briefly_then_gone  # 1-2 seconds of travel
+
+timing:
+  twinkle_period: "2-4 seconds per full brightness cycle per star"
+  twinkle_phase_offset: "each star on different phase so they never all bright/dim simultaneously"
+  shooting_star_interval: "once per loop (every 10-12 seconds) or optional"
+  shooting_star_duration: "1.0-1.5 seconds from entry to fade"
+  moon_pulse_period: "10-15 seconds if used at all"
+
+loopability: seamless_with_offset_star_phases
+
+shooting_star_details:
+  angle: "diagonal, upper-right to lower-left or upper-left to lower-right"
+  length: "short to medium streak, not overly dramatic"
+  brightness: "bright white, fades quickly"
+  tail: "short fading trail, not comet-like"
+  frequency: "maximum one per loop — too many breaks the calm mood"
+
+what_to_avoid:
+  - no flashing disco or stroboscopic effect
+  - no fast blinking
+  - no empty sky without stars
+  - no overexposed white moon that bleeds into sky
+  - no chaotic or random star movement (stars don't move position, only brightness)
+  - no multiple shooting stars at once
+  - no star that disappears completely between blinks
+
+how_to_apply_to_my_scene:
+  - scatter 15-25 small stars across upper 40% of sky
+  - select 4-6 of them for subtle twinkle animation
+  - animate with sine-wave brightness, different period per star
+  - add one optional slow shooting star in upper sky area
+  - keep crescent moon static with only faintest glow pulse
+  - avoid stars in the lower half where lake and forest are
+
+prompt_keywords:
+  - twinkling stars
+  - slowly pulsing stars
+  - gentle star glow
+  - slow shooting star
+  - brief meteor streak
+  - calm night sky
+  - indigo sky with stars
+  - subtle star animation
+  - staggered star twinkle
+
+negative_prompt_keywords:
+  - flashing stars
+  - strobe effect
+  - disco lights
+  - empty sky
+  - starless night
+  - overexposed moon
+  - star trails
+  - fast meteor shower
+  - chaotic sky

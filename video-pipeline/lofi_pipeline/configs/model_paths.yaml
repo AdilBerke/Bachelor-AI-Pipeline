@@ -1,0 +1,10 @@
+python: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/.venv/bin/python"
+trainer_script: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/tools/LTX-Video-Trainer/scripts/train.py"
+preprocess_script: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/tools/LTX-Video-Trainer/scripts/preprocess_dataset.py"
+generate_script: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/Bachelorarbeit/pipeline/v003_manual/generate.py"
+pipeline_root: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/Bachelorarbeit/lofi_pipeline"
+global_base_checkpoint: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/Bachelorarbeit/lofi_pipeline/base_checkpoints/lofi_lora_best.safetensors"
+model_source: "LTXV_13B_097_DEV"
+env:
+  PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+  LTXV_VRAM_LIMIT_FRACTION: "0.80"

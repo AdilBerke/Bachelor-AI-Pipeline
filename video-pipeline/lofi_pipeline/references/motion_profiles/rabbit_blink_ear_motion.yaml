@@ -1,0 +1,79 @@
+name: rabbit_blink_ear_motion
+element_type: rabbits
+source_reference: "https://www.youtube.com/watch?v=gkeqjoOCAa4 — Lo-fi for Rabbits (Only)"
+analysis_status: analyzed
+
+count_constraint: "EXACTLY TWO rabbits — never one, never three"
+
+visible_motion:
+  - rabbits blink naturally — eyelids close slowly, open slowly
+  - ears rotate slightly or twitch forward/sideways every 4-6 seconds
+  - very subtle breathing: chest rises and falls slowly
+  - occasional tiny head tilt (1-2 degrees) for liveliness
+  - no walking, jumping, or position change
+  - tail may twitch slightly but barely visible
+
+speed: slow_but_clearly_visible
+rhythm: natural_irregular_biological
+amplitude: very_low
+
+timing:
+  blink_interval: "every 4-8 seconds, offset between the two rabbits"
+  ear_twitch_interval: "every 5-10 seconds, can be same or different timing per rabbit"
+  breathing_period: "2-3 seconds per inhale/exhale cycle"
+  head_tilt_interval: "occasional, every 10-20 seconds"
+
+loopability: seamless_with_offset_timing_between_two_rabbits
+
+anatomy_requirements:
+  - round fluffy body with clear separation from background
+  - long upright ears, not floppy
+  - small visible eyes with natural shape (not cartoon circles)
+  - soft muzzle with hint of nose
+  - front paws visible in sitting position
+  - both rabbits face mostly forward, may angle slightly toward each other or toward lake
+
+what_to_avoid:
+  - no third rabbit under any circumstances
+  - no duplicated rabbit (mirrored copy artifact)
+  - no broken or empty faces
+  - no missing eyes or blank face area
+  - no unnatural mouth opening
+  - no cat-like or dog-like proportions
+  - no overly large cartoon eyes
+  - no floating rabbit ears disconnected from head
+  - no walking, hopping, or position change within the loop
+
+how_to_apply_to_my_scene:
+  - place both rabbits in lower foreground, side by side
+  - offset blink timing: rabbit 1 blinks first, rabbit 2 blinks 2-3 seconds later
+  - offset ear motion similarly to avoid perfect synchrony
+  - keep body position absolutely stable — only face/ear elements animate
+  - rabbits should look calm and content, not startled or alert
+
+prompt_keywords:
+  - exactly two rabbits
+  - a pair of rabbits
+  - two rabbits side by side
+  - natural rabbit faces
+  - visible eyes
+  - subtle ear twitch
+  - gentle blinking
+  - soft breathing motion
+  - calm sitting rabbits
+  - rabbits facing forward
+
+negative_prompt_keywords:
+  - three rabbits
+  - trio
+  - extra rabbit
+  - third rabbit
+  - additional animal
+  - deformed rabbit
+  - broken face
+  - missing eyes
+  - no face
+  - jumping rabbit
+  - running rabbit
+  - one rabbit
+  - single rabbit

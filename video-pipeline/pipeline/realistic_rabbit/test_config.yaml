@@ -1,0 +1,94 @@
+# Testmatrix: Realistischer Hase am See
+# Alle Tests verwenden Base-Modell (kein LoRA) außer Test A (Baseline)
+#
+# Reihenfolge: A → B → B2 → (frame extrahieren) → C → D → E → F → G
+
+base_output_dir: "outputs"
+python: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/.venv/bin/python"
+script: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/Bachelorarbeit/pipeline/realistic_rabbit/generate_realistic.py"
+make_gif: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/Bachelorarbeit/lofi_pipeline/scripts/make_gif.py"
+rife_binary: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/tools/rife-ncnn-vulkan/rife-ncnn-vulkan-20221029-ubuntu/rife-ncnn-vulkan"
+rife_model: "rife-v4.6"
+rife_model_dir: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/tools/rife-ncnn-vulkan/rife-ncnn-vulkan-20221029-ubuntu"
+
+tests:
+  - id: A
+    name: "Baseline (Lo-Fi LoRA R8)"
+    description: "Vergleichswert — zeigt wie Lo-Fi LoRA den realistischen Stil beeinflusst"
+    lora: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/Bachelorarbeit/lofi_pipeline/scenarios/rabbit_lake/rounds/round_08/checkpoints/lora_weights_step_00150.safetensors"
+    width: 960
+    height: 544
+    frames: 97
+    steps: 80
+    guidance: 9.0
+    seed: 777
+    output: "outputs/test_A/rabbit_lofi_r8.mp4"
+    est_time_min: 15
+    est_vram_gb: 30
+
+  - id: B
+    name: "Text-zu-Video Machbarkeitstest"
+    description: "Kein LoRA, niedrige Auflösung — schnellster erster Check ob Base-Modell realistisch generiert"
+    lora: null
+    width: 768
+    height: 432
+    frames: 49
+    steps: 50
+    guidance: 7.0
+    seed: 42
+    output: "outputs/test_B/rabbit_t2v_768x432.mp4"
+    est_time_min: 7
+    est_vram_gb: 28
+
+  - id: B2
+    name: "Text-zu-Video höhere Auflösung"
+    description: "Kein LoRA, 1280×720 — überprüft VRAM und Qualität bei höherer Auflösung"
+    lora: null
+    width: 1280
+    height: 720
+    frames: 49
+    steps: 60
+    guidance: 7.0
+    seed: 42
+    output: "outputs/test_B2/rabbit_t2v_1280x720.mp4"
+    est_time_min: 22
+    est_vram_gb: 36
+
+  - id: C
+    name: "Bild-zu-Video Stabilitätstest"
+    description: "Referenzbild ankert Hasen-Identität — Frame aus Test B oder eigenes Foto"
+    lora: null
+    image: "ref_rabbit.jpg"
+    image_noise_scale: 0.15
+    width: 960
+    height: 544
+    frames: 49
+    steps: 50
+    guidance: 6.0
+    seed: 42
+    output: "outputs/test_C/rabbit_i2v_standard.mp4"
+    est_time_min: 11
+    est_vram_gb: 30
+    note: "Referenzbild erforderlich: ref_rabbit.jpg ins pipeline/realistic_rabbit/ Verzeichnis legen"
+
+  - id: D
+    name: "Bild-zu-Video starke Konditionierung"
+    description: "Niedrigere guidance + weniger noise scale → Hase bleibt sehr nah am Referenzbild, weniger Drift"
+    lora: null
+    image: "ref_rabbit.jpg"
+    image_noise_scale: 0.05
+    width: 960
+    height: 544
+    frames: 49
+    steps: 50
+    guidance: 5.0
+    seed: 42
+    output: "outputs/test_D/rabbit_i2v_strong.mp4"
+    est_time_min: 11
+    est_vram_gb: 30
+    note: "Braucht ebenfalls ref_rabbit.jpg"
+
+  # Tests E, F, G sind Post-Processing auf den besten T2V/I2V Output:
+  # E: Real-ESRGAN 2x (960×544 → 1920×1088)  — via make_gif.py
+  # F: RIFE v4.6 Interpolation (8fps → 30fps)  — via rife binary
+  # G: Kombination: I2V + ESRGAN + RIFE        — bestes Gesamtergebnis

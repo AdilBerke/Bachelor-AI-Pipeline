@@ -1,0 +1,199 @@
+{
+  "id": "rabbit_2",
+  "name": "rabbit_2",
+  "created": "2026-08-07T03:42:12.724Z",
+  "updated": "2026-08-07T05:42:12.725707",
+  "phase": "training",
+  "setup": {
+    "name": "rabbit_2",
+    "visualStyle": "lofi_anime",
+    "mainSubject": "Ein Hase vor einem See bei Nacht im Hintergrund die Sterne und ein paar hauser ",
+    "prompt": "lofi_girl, flat anime illustration, hand-drawn anime style, 2D anime art, cel shading, lo-fi anime illustration, animated loop, visible ambient motion, Ein Hase vor einem See bei Nacht im Hintergrund die Sterne und ein paar hauser, animated smooth loop, cozy lo-fi atmosphere, polished illustration quality, 16:9 stable composition, no text, no UI, no overlays, no watermarks",
+    "negativePrompt": "completely static, frozen image, no movement, still frame, 3D render, CGI, photorealistic, volumetric lighting, subsurface scattering, plastic texture, 3D model, game engine render, realistic fur, ray tracing, text, watermark, signature, UI elements, player controls, overlays, blurry, low quality, grain, compression artifacts, bright green, washed out, grayscale, black canvas, open mouth, surprised expression, anxious expression",
+    "guidanceScale": 9,
+    "stepsPerRound": 100
+  },
+  "sources": [
+    {
+      "id": "class_a",
+      "label": "Motiv-Referenz",
+      "query": "lofi rabbit animated music background",
+      "suggestions": [
+        "lofi rabbit animated music background",
+        "lofi rabbit music live wallpaper",
+        "rabbit lofi beats animated",
+        "lofi rabbit lake music"
+      ],
+      "videos": [
+        {
+          "id": "kbXHHsGtYfM",
+          "title": "A Little Bunny's Spring Wanderlust 🐰🌿Nostalgic Village Storybook Music",
+          "url": "https://www.youtube.com/watch?v=kbXHHsGtYfM",
+          "channel": "Little Fairytale",
+          "duration": "197:33",
+          "thumbnail": "https://i.ytimg.com/vi/kbXHHsGtYfM/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDCAuBGxfM-ywqeZT0PjmF0uFvx4Q",
+          "views": 77693
+        },
+        {
+          "id": "gkeqjoOCAa4",
+          "title": "Lo-fi for Rabbits (Only) 🐰",
+          "url": "https://www.youtube.com/watch?v=gkeqjoOCAa4",
+          "channel": "Homework Radio",
+          "duration": "55:03",
+          "thumbnail": "https://i.ytimg.com/vi/gkeqjoOCAa4/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLB2-J0_95NlHLFd-E2R5NE-6LM97g",
+          "views": 83315
+        },
+        {
+          "id": "e6AniYQ3jms",
+          "title": "A Cozy Rainy Day in the Little Rabbit’s Cottage 🌧️ | Gentle Storybook Folk Music",
+          "url": "https://www.youtube.com/watch?v=e6AniYQ3jms",
+          "channel": "The Quiet Village",
+          "duration": "77:06",
+          "thumbnail": "https://i.ytimg.com/vi/e6AniYQ3jms/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLA7TQWva9-yWdjieiLz2Gjpnouf-A",
+          "views": 660587
+        },
+        {
+          "id": "VlhiVlKoTto",
+          "title": "A Cozy Day at the Rabbit Bakery 🧁🐰  Warm Storybook Music for Relaxing & Nostalgic Moments",
+          "url": "https://www.youtube.com/watch?v=VlhiVlKoTto",
+          "channel": "Bunny Lofi Corner",
+          "duration": "190:46",
+          "thumbnail": "https://i.ytimg.com/vi/VlhiVlKoTto/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBJ-TZ_b5NmKKeem-X9t22Z0vP3PA",
+          "views": 743
+        },
+        {
+          "id": "YeknZlU83xs",
+          "title": "Cozy Rabbit Lofi: 1 Hour of Chill Beats for Focus & Relaxation 🐇🌙",
+          "url": "https://www.youtube.com/watch?v=YeknZlU83xs",
+          "channel": "Lo-Fi kitty",
+          "duration": "92:02",
+          "thumbnail": "https://i.ytimg.com/vi/YeknZlU83xs/hq720.jpg?sqp=-oaymwE2CNAFEJQDSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gmAAtAFigIMCAAQARhWIGUoSjAP&rs=AOn4CLAlV86LtBNSUoXSRppOtwYu1m2hMg",
+          "views": 57
+        },
+        {
+          "id": "qC6YkDDmwPM",
+          "title": "Joyful Day Lofi with Bunny 🐰🎧 2 Hour Happy Lofi Song🍀 Cute Lofi🌸 cute & relaxing music✨ Lofi Hip Hop",
+          "url": "https://www.youtube.com/watch?v=qC6YkDDmwPM",
+          "channel": "Bunny Lofi",
+          "duration": "158:58",
+          "thumbnail": "https://i.ytimg.com/vi/qC6YkDDmwPM/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLD6fKzWpsWKp1By5NQw5WacQjQrnw",
+          "views": 346143
+        },
+        {
+          "id": "Rsb61TUtwA8",
+          "title": "Books & Tea Evening in the Rabbit Hole • Cozy Forest Ambience & Quiet Fantasy Music for Calm Reading",
+          "url": "https://www.youtube.com/watch?v=Rsb61TUtwA8",
+          "channel": "forRest Mind ꊛ Ambience",
+          "duration": "360:01",
+          "thumbnail": "https://i.ytimg.com/vi/Rsb61TUtwA8/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAN7clpvvdi4EwAFswDPn_F_mBFXQ",
+          "views": 1280528
+        },
+        {
+          "id": "Wl9TrCU2z3Y",
+          "title": "A peaceful day at the Rabbit's pottery shop 🐰🏺  Cozy Storybook Music for Relaxation",
+          "url": "https://www.youtube.com/watch?v=Wl9TrCU2z3Y",
+          "channel": "Bunny Lofi Corner",
+          "duration": "200:24",
+          "thumbnail": "https://i.ytimg.com/vi/Wl9TrCU2z3Y/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLANG7sfk2fiDG9Iq-YehrdBB81cLg",
+          "views": 28252
+        }
+      ],
+      "selectedIds": [
+        "gkeqjoOCAa4",
+        "Rsb61TUtwA8",
+        "qC6YkDDmwPM"
+      ]
+    },
+    {
+      "id": "class_b",
+      "label": "Hintergrund / Atmosphäre",
+      "query": "lofi lake night animated music background",
+      "suggestions": [
+        "lofi lake night animated music background",
+        "lofi lake music live wallpaper",
+        "chill lofi lake night beats",
+        "lo-fi hip hop lake night music video"
+      ],
+      "videos": [
+        {
+          "id": "KxpViLLzlrc",
+          "title": "Chillhop Hideaway 🌅 [cozy beats / lofi mix]",
+          "url": "https://www.youtube.com/watch?v=KxpViLLzlrc",
+          "channel": "Chillhop Music",
+          "duration": "121:33",
+          "thumbnail": "https://i.ytimg.com/vi/KxpViLLzlrc/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAAx0PIVvYdVOuYHZ8JwP76uYH7MA",
+          "views": 965390
+        },
+        {
+          "id": "8X4AnPiO7B0",
+          "title": "lakeside retreat. [lofi / jazzhop / chill mix]",
+          "url": "https://www.youtube.com/watch?v=8X4AnPiO7B0",
+          "channel": "The Jazz Hop Café",
+          "duration": "44:10",
+          "thumbnail": "https://i.ytimg.com/vi/8X4AnPiO7B0/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAJVcEXuCW8uYnc0guZKUsoRg8l7g",
+          "views": 482230
+        },
+        {
+          "id": "5XSsmUjJAok",
+          "title": "Pink Valentine Living Room by the Lake 🌸 | Cozy Lofi Study Music by the Fireplace Chill Vibe",
+          "url": "https://www.youtube.com/watch?v=5XSsmUjJAok",
+          "channel": "MOODLOFI",
+          "duration": "206:18",
+          "thumbnail": "https://i.ytimg.com/vi/5XSsmUjJAok/hq720.jpg?sqp=-oaymwE2CNAFEJQDSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gmAAroFigIMCAAQARhyIDsoOzAP&rs=AOn4CLBtUue58PXMZupnmzFvZdO-CQMaOQ",
+          "views": 1405
+        },
+        {
+          "id": "SuzmYTFGBuQ",
+          "title": "Lofi Zen - Kyoto Sake Bar Rain with Lo-fi Chillhop at Night | For Study, Sleep, or Relaxation | 4K",
+          "url": "https://www.youtube.com/watch?v=SuzmYTFGBuQ",
+          "channel": "Lofi Zen",
+          "duration": "210:01",
+          "thumbnail": "https://i.ytimg.com/vi/SuzmYTFGBuQ/hq720.jpg?sqp=-oaymwE2CNAFEJQDSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gmAAtAFigIMCAAQARhlIE8oPDAP&rs=AOn4CLDBY1HSUJxxLlzN4Yns4rWVVBeUNw",
+          "views": 1222844
+        },
+        {
+          "id": "rNeyB8VrS9E",
+          "title": "Peaceful Japanese Lake Café 🌊 Cherry Blossom Views 🌸 Lofi Chill Beats for Study & Calm Moments",
+          "url": "https://www.youtube.com/watch?v=rNeyB8VrS9E",
+          "channel": "Lofi Soul",
+          "duration": "714:59",
+          "thumbnail": "https://i.ytimg.com/vi/rNeyB8VrS9E/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAixEJvXwOVx8HmimoroO88cGj1-Q",
+          "views": 20859
+        },
+        {
+          "id": "8EM7btM7-XQ",
+          "title": "Rainy Night by the Fireplace with sleepy cat  – Cozy Lofi for Reading & Relaxation 🌧️🔥🐾",
+          "url": "https://www.youtube.com/watch?v=8EM7btM7-XQ",
+          "channel": "Lofi Fireplace",
+          "duration": "180:04",
+          "thumbnail": "https://i.ytimg.com/vi/8EM7btM7-XQ/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLA2SJkkdRrDAjKNLWpySJiivH8Qrw",
+          "views": 1486399
+        },
+        {
+          "id": "zhDwjnYZiCo",
+          "title": "Ghibli Coffee Shop ☕️ Music to put you in a better mood 🌿 lofi hip hop - lofi songs | study / relax",
+          "url": "https://www.youtube.com/watch?v=zhDwjnYZiCo",
+          "channel": "Lofi Coffee",
+          "duration": "224:29",
+          "thumbnail": "https://i.ytimg.com/vi/zhDwjnYZiCo/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAuDtMQILk9ngznBGiA-fdqQMKyiw",
+          "views": 11165246
+        },
+        {
+          "id": "CqiAEdrTzVA",
+          "title": "Rainy Day in a Forest Cabin | Cozy Fireplace & Cat Lofi Ambience 🌧️🐾",
+          "url": "https://www.youtube.com/watch?v=CqiAEdrTzVA",
+          "channel": "Lofi Fireplace",
+          "duration": "180:04",
+          "thumbnail": "https://i.ytimg.com/vi/CqiAEdrTzVA/hq720.jpg?sqp=-oaymwE2CNAFEJQDSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gmAAtAFigIMCAAQARhlIF0oRzAP&rs=AOn4CLDlCIznncTznId8RjMDhO7GANmE4w",
+          "views": 243870
+        }
+      ],
+      "selectedIds": [
+        "8X4AnPiO7B0",
+        "KxpViLLzlrc",
+        "SuzmYTFGBuQ"
+      ]
+    }
+  ],
+  "scenarioId": "rabbit_2_0807_0535"
+}
