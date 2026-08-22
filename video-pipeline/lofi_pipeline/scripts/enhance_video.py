@@ -22,7 +22,7 @@ SCENARIOS_DIR = PIPELINE_ROOT / "scenarios"
 TOOLS_ROOT = PIPELINE_ROOT.parent.parent / "tools"
 _RIFE_DIR = TOOLS_ROOT / "rife-ncnn-vulkan" / "rife-ncnn-vulkan-20221029-ubuntu"
 RIFE_BIN = _RIFE_DIR / "rife-ncnn-vulkan"
-RIFE_MODEL = _RIFE_DIR / "rife-v4"   # supports custom frame count (-n)
+RIFE_MODEL = _RIFE_DIR / "rife-v4"
 ESRGAN_MODEL = TOOLS_ROOT / "realesrgan-models" / "RealESRGAN_x4plus_anime_6B.pth"
 
 
@@ -63,7 +63,6 @@ def enhance_rife(input_mp4: Path, output_mp4: Path, scale: int, target_fps: int)
         frames_rife.mkdir()
         frames_esrgan.mkdir()
 
-        # Step 1: Extract frames from input (8fps native)
         print(f"  [1/4] Extracting frames...")
         r = subprocess.run([
             "ffmpeg", "-y", "-i", str(input_mp4),
@@ -74,11 +73,9 @@ def enhance_rife(input_mp4: Path, output_mp4: Path, scale: int, target_fps: int)
             return False
 
         n_frames = len(list(frames_in.glob("*.png")))
-        # RIFE doubles frames per pass; run multiple passes to reach target_fps
-        multiplier = target_fps // 8  # e.g. 60fps → multiplier=7 → use -n
+        multiplier = target_fps // 8
         target_n = n_frames * multiplier
 
-        # Step 2: RIFE interpolation
         print(f"  [2/4] RIFE interpolation ({n_frames} → {target_n} frames)...")
         rife_model = RIFE_MODEL if RIFE_MODEL.exists() else (_RIFE_DIR / "rife-v4")
         r = subprocess.run([
@@ -93,7 +90,6 @@ def enhance_rife(input_mp4: Path, output_mp4: Path, scale: int, target_fps: int)
             print(f"  RIFE failed ({r.stderr[-300:]}), trying minterpolate fallback...")
             return enhance_minterpolate(input_mp4, output_mp4, scale, target_fps)
 
-        # Step 3: Real-ESRGAN upscale (anime model)
         if ESRGAN_MODEL.exists() and scale >= 2:
             print(f"  [3/4] Real-ESRGAN upscale (x{scale})...")
             try:
@@ -121,7 +117,6 @@ def enhance_rife(input_mp4: Path, output_mp4: Path, scale: int, target_fps: int)
         else:
             upscale_frames = frames_rife
 
-        # Step 4: Reassemble video
         w = 832 * scale
         h = 480 * scale
         print(f"  [4/4] Assembling {w}x{h} @ {target_fps}fps...")

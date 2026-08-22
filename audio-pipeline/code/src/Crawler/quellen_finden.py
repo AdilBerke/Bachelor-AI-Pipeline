@@ -228,10 +228,6 @@ def main() -> int:
         item["returncode"] = result.returncode
         item["status"] = "ok" if result.returncode == 0 else "fehler"
         if result.returncode != 0 or not top10_csv_hat_zeilen(item["command"]):
-            # Bewusst kein Fallback mit gelockerten Kriterien: Wenn die Top-5-Suche
-            # leer bleibt oder ein Video nicht automatisiert geladen werden kann, wird
-            # keine schwaechere Quelle nachgeladen. Die Luecke bleibt sichtbar und wird
-            # manuell (Link oder Datei-Upload) in der Website geschlossen.
             item["status"] = "leer" if result.returncode == 0 else "fehler"
             errors += 1
 

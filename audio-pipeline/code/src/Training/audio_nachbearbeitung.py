@@ -461,9 +461,6 @@ def try_deepfilter(input_path: Path, output_dir: Path, tools: Dict[str, Dict[str
             "used": False,
             "reason": "DeepFilterNet Python-Paket gefunden, aber kein lokaler CLI-Befehl in PATH oder .venv/bin.",
         }
-    # DeepFilterNet erwartet typischerweise 48k WAV. Die erzeugte Datei wird nur
-    # genutzt, wenn sie eindeutig gefunden wurde; sonst bleibt der Standardpfad
-    # ohne Abbruch aktiv.
     work_dir = output_dir / "deepfilternet"
     work_dir.mkdir(parents=True, exist_ok=True)
     prepared = work_dir / "input_48k.wav"

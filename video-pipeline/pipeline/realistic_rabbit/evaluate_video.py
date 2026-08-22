@@ -25,7 +25,6 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 
 
-# ── Farb-Hilfsfunktionen ────────────────────────────────────────────────────
 
 def clr(c, t): return f"\033[{c}m{t}\033[0m"
 def cyan(t):   return clr("36", t)
@@ -42,13 +41,12 @@ def score_color(val, good_high=True):
         if val >= 0.8: return green(f"{val:.4f}")
         if val >= 0.6: return yellow(f"{val:.4f}")
         return red(f"{val:.4f}")
-    else:  # niedrig ist gut (z.B. Flicker)
+    else:
         if val <= 0.02: return green(f"{val:.4f}")
         if val <= 0.06: return yellow(f"{val:.4f}")
         return red(f"{val:.4f}")
 
 
-# ── Frame-Extraktion ─────────────────────────────────────────────────────────
 
 def extract_frames(video_path: Path, max_frames=None):
     """Gibt alle Frames als numpy-Array (H, W, 3) zurueck."""
@@ -70,7 +68,6 @@ def extract_frames(video_path: Path, max_frames=None):
     return frames, fps, (w, h), total
 
 
-# ── Metrik 1: Temporal SSIM ─────────────────────────────────────────────────
 
 def temporal_ssim(frames):
     """
@@ -88,7 +85,6 @@ def temporal_ssim(frames):
     return float(np.mean(scores)), float(np.min(scores)), float(np.std(scores))
 
 
-# ── Metrik 2: Sharpness (Laplacian Variance) ────────────────────────────────
 
 def sharpness_score(frames):
     """
@@ -102,12 +98,10 @@ def sharpness_score(frames):
         lap = cv2.Laplacian(gray, cv2.CV_64F).var()
         scores.append(lap)
     raw_mean = float(np.mean(scores))
-    # Normierung: 3000 = sehr scharfes Referenzbild
     normalized = min(raw_mean / 3000.0, 1.0)
     return normalized, raw_mean, float(np.std(scores))
 
 
-# ── Metrik 3: Flicker Score ──────────────────────────────────────────────────
 
 def flicker_score(frames):
     """
@@ -124,7 +118,6 @@ def flicker_score(frames):
     return float(np.mean(diffs)), float(np.max(diffs)), float(np.std(diffs))
 
 
-# ── Metrik 4: Motion Score (Optischer Fluss) ────────────────────────────────
 
 def _optical_flow_magnitudes(frames):
     """Optischer Fluss für alle Frame-Paare — intern wiederverwendet."""
@@ -162,13 +155,12 @@ def motion_smoothness(frames):
     magnitudes = _optical_flow_magnitudes(frames)
     mean = float(np.mean(magnitudes))
     if mean < 0.01:
-        return 1.0, 0.0  # statisch = per Definition glatt
+        return 1.0, 0.0
     cv = float(np.std(magnitudes) / mean)
-    smoothness = max(0.0, 1.0 - min(cv, 2.0) / 2.0)  # CV > 2.0 → 0.0
+    smoothness = max(0.0, 1.0 - min(cv, 2.0) / 2.0)
     return smoothness, round(cv, 4)
 
 
-# ── Metrik 5: Color Consistency ─────────────────────────────────────────────
 
 def color_consistency(frames):
     """
@@ -178,21 +170,19 @@ def color_consistency(frames):
     means = []
     for frame in frames:
         means.append([
-            np.mean(frame[:, :, 0]),  # R
-            np.mean(frame[:, :, 1]),  # G
-            np.mean(frame[:, :, 2]),  # B
+            np.mean(frame[:, :, 0]),
+            np.mean(frame[:, :, 1]),
+            np.mean(frame[:, :, 2]),
         ])
     means = np.array(means)
     std_r = float(np.std(means[:, 0]))
     std_g = float(np.std(means[:, 1]))
     std_b = float(np.std(means[:, 2]))
     avg_std = (std_r + std_g + std_b) / 3.0
-    # Normiert: 0 = perfekt stabil, 1 = stark wechselnd (255 Einheiten)
     consistency = max(0.0, 1.0 - avg_std / 30.0)
     return consistency, std_r, std_g, std_b
 
 
-# ── Metrik 6: Brightness Consistency ────────────────────────────────────────
 
 def brightness_consistency(frames):
     """
@@ -209,25 +199,24 @@ def brightness_consistency(frames):
     return consistency, mean, std
 
 
-# ── Gesamt-Score ────────────────────────────────────────────────────────────
 
 def compute_overall(metrics):
     """
     Gewichteter Gesamtscore aus allen Metriken (0.0 - 1.0).
     Hoeher = besser.
     """
-    ssim_w       = 0.35  # Temporale Stabilitaet — wichtigste Metrik
-    sharpness_w  = 0.20  # Schaerfe
-    flicker_inv_w= 0.20  # Flicker (invertiert: niedrig = gut)
-    motion_w     = 0.10  # Moderate Bewegung bevorzugt
-    color_w      = 0.10  # Farbstabilitaet
-    bright_w     = 0.05  # Helligkeitsstabilitaet
+    ssim_w       = 0.35
+    sharpness_w  = 0.20
+    flicker_inv_w= 0.20
+    motion_w     = 0.10
+    color_w      = 0.10
+    bright_w     = 0.05
 
     ssim_score = metrics["temporal_ssim"]["mean"]
     sharp_score = min(metrics["sharpness"]["normalized"], 1.0)
     flicker_inv = max(0.0, 1.0 - metrics["flicker"]["mean"] / 0.1)
     motion = metrics["motion"]["mean"]
-    motion_score = 1.0 - min(abs(motion - 1.5) / 5.0, 1.0)  # optimal ~1.5 px/frame
+    motion_score = 1.0 - min(abs(motion - 1.5) / 5.0, 1.0)
     color_score = metrics["color_consistency"]["consistency"]
     bright_score = metrics["brightness_consistency"]["consistency"]
 
@@ -242,7 +231,6 @@ def compute_overall(metrics):
     return round(float(overall), 4)
 
 
-# ── Analyse ─────────────────────────────────────────────────────────────────
 
 def analyze_video(video_path: Path, verbose=True):
     frames, fps, (w, h), total = extract_frames(video_path)
@@ -333,7 +321,6 @@ def print_report(metrics, label=None):
     print()
 
 
-# ── Vergleichs-Modus ─────────────────────────────────────────────────────────
 
 def find_mp4(path: Path):
     """Findet erstes MP4 in Verzeichnis oder gibt Pfad direkt zurueck."""
@@ -362,7 +349,6 @@ def compare_mode(paths):
     if not results:
         return
 
-    # Sortiert nach Gesamt-Score
     results.sort(key=lambda x: x["overall_score"], reverse=True)
 
     print(f"\n{'='*70}")
@@ -384,7 +370,6 @@ def compare_mode(paths):
     print(f"\n  Bester: {bold(results[0]['label'])}  (Score: {results[0]['overall_score']:.4f})")
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Video-Qualitaetsmetriken")

@@ -18,7 +18,7 @@ for path in [str(CODE_ROOT), str(BACHELORARBEIT_ROOT), str(WORKSPACE_ROOT)]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
-from src.Video.video_dataset_service import (  # noqa: E402
+from src.Video.video_dataset_service import (
     ClipExtractionConfig,
     VideoDatasetError,
     extract_reference_clip,

@@ -29,7 +29,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from audio_bewertung import (  # noqa: E402
+from audio_bewertung import (
     EPS,
     SAMPLE_RATE,
     db,
@@ -188,7 +188,6 @@ def sammle_referenzen(referenz_root: Path, pro_genre: int) -> list[AudioEintrag]
 
     eintraege: list[AudioEintrag] = []
     for genre in sorted(gruppen):
-        # Deterministisch und verteilt: erst hohe Scores, dann verschiedene Quellen.
         sortierte = sorted(
             gruppen[genre],
             key=lambda item: (
@@ -387,7 +386,6 @@ def schaetze_bpm(audio: np.ndarray) -> float:
         return 0.0
     lag = int(np.argmax(window)) + min_lag
     bpm = 60.0 * frames_per_second / max(1, lag)
-    # Lofi wird oft halb/doppelt erkannt. In einen sinnvollen Bereich falten.
     while bpm < 65.0:
         bpm *= 2.0
     while bpm > 120.0:
@@ -614,7 +612,7 @@ def schreibe_optional_diagramm(rows: list[dict[str, Any]], output_path: Path) ->
     """Schreibt ein kleines PNG, wenn matplotlib lokal vorhanden ist."""
 
     try:
-        import matplotlib.pyplot as plt  # type: ignore
+        import matplotlib.pyplot as plt
     except Exception:
         return ""
     if not rows:

@@ -379,10 +379,6 @@ def clip_quellschluessel(row: dict[str, Any]) -> str:
     Alte 60s-Splits und neue YouTube-MP3-Clips nutzen unterschiedliche
     Feldnamen. Diese Funktion fuehrt sie in einen gemeinsamen Schluessel.
     """
-    # Bei 60s-zu-30s-Datasets ist `source_60s_path` der verlaesslichste
-    # Ursprung. Manche alte Manifeste setzen `clip_start_sec` pro 60s-Datei
-    # erneut auf 0/30; nur source_video_id + Sekunden wuerde dort falsche
-    # Duplikate melden.
     source_60s_path = row.get("source_60s_path")
     if source_60s_path:
         teil = row.get("teil") or ""
@@ -390,7 +386,6 @@ def clip_quellschluessel(row: dict[str, Any]) -> str:
         teil_end = row.get("teil_end_sec")
         return f"60s|{source_60s_path}|{teil}|{nummer(teil_start)}|{nummer(teil_end)}"
 
-    # Neue MP3/Youtube-Imports haben ein Roh-Audio plus absolutes Zeitfenster.
     source_audio_path = row.get("source_audio_path")
     start_time = row.get("start_time_sec")
     end_time = row.get("end_time_sec")
@@ -676,10 +671,6 @@ def loese_resume_checkpoint(args: argparse.Namespace) -> Path | None:
         if latest:
             args.resume_from = str(latest)
             return latest
-        # Ein neuer Run darf nicht unbemerkt einen Adapter aus einem anderen
-        # Experiment erben. Ohne Checkpoint im explizit gewaehlten Run startet
-        # ``auto`` sauber vom Basismodell. Fuer eine bewusste Uebernahme gibt es
-        # weiterhin ``--resume-from best`` oder einen konkreten Pfad.
         args.ohne_resume = True
         args.resume_from = ""
         return None
@@ -985,10 +976,6 @@ def veroeffentliche_lora_stand(run_dir: Path, dataset_root: Path, target_step: i
     )
 
     if ist_geteilter_lauf:
-        # Nur beim geteilten Basis-Lauf zusaetzlich den Standard-Zeiger aktualisieren.
-        # Ein genre-eigener Lauf (anderer run_dir) darf den geteilten Status nie
-        # ueberschreiben - sonst wuerde ein neues, noch unbewertetes Genre-Training
-        # den bewaehrten Basis-Adapter-Status verdraengen.
         active_run_dir = STANDARD_RUN_ROOT / STANDARD_RUN_NAME
         active_run_dir.mkdir(parents=True, exist_ok=True)
         active_stand = dict(stand)

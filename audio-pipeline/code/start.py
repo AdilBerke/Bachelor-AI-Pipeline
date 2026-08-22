@@ -15,8 +15,6 @@ import sys
 from pathlib import Path
 
 
-# Projektwurzel und eigentliche Pipeline-Datei. `code/start.py` liegt eine Ebene
-# unter der Projektwurzel, deshalb ist `parents[1]` der Arbeitsordner.
 ROOT = Path(__file__).resolve().parents[1]
 PIPELINE = ROOT / "code" / "src" / "Pipeline" / "ablauf.py"
 STANDARD_ARGUMENTE = [
@@ -56,8 +54,6 @@ def main() -> int:
             "neue_longform, 3m, Chill Lofi, 78 BPM.",
             flush=True,
         )
-    # subprocess.call uebergibt die Kontrolle an die Pipeline und liefert deren
-    # Exit-Code zurueck. So bleibt `code/start.py` nur ein transparenter Starter.
     return subprocess.call([sys.executable, str(PIPELINE), *argumente], cwd=ROOT)
 
 

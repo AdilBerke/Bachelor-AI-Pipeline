@@ -18,7 +18,7 @@ for path in [str(CODE_ROOT), str(BACHELORARBEIT_ROOT), str(WORKSPACE_ROOT)]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
-from src.Video.visual_training_dataset import (  # noqa: E402
+from src.Video.visual_training_dataset import (
     DEFAULT_LTX_DATASET_DIR,
     check_ltx_training_readiness,
     collect_video_training_environment,

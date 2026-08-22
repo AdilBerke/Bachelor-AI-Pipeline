@@ -92,7 +92,6 @@ def evaluate_video(video_path, python_bin):
         [python_bin, str(EVALUATE_SCRIPT), str(video_path), "--save-report"],
         capture_output=True, text=True,
     )
-    # Lese die gespeicherte .metrics.json
     metrics_file = Path(str(video_path).replace(".mp4", ".metrics.json"))
     if metrics_file.exists():
         with open(metrics_file) as f:
@@ -177,7 +176,6 @@ def print_progress(entries, targets, step, total_known):
         row("GESAMT-SCORE",       "auto_overall",    "overall")
         print()
 
-        # ASCII-Graphen
         if len(entries) >= 2:
             print(dim("  Verlauf über Steps:"))
             print(ascii_graph(entries, "auto_overall",  label="Gesamt"))
@@ -234,7 +232,6 @@ def main():
     stop_file  = round_dir / "STOP_TRAINING"
     eval_dir.mkdir(parents=True, exist_ok=True)
 
-    # Ziele aus scenario.yaml als Fallback
     scenario_targets = scenario_cfg.get("metric_targets", {})
     targets = {}
     targets["overall"]   = args.target_overall  or scenario_targets.get("overall")
@@ -264,7 +261,6 @@ def main():
     save_metrics_log(log_path, log_data)
 
     while True:
-        # Prüfe ob Training schon fertig ist
         ckpts = []
         if ckpt_dir.exists():
             ckpts = sorted(ckpt_dir.glob("lora_weights_step_*.safetensors"))

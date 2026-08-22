@@ -248,8 +248,6 @@ def genre_scores(row: dict[str, Any]) -> dict[str, float]:
                 score += float(gewicht)
         scores[genre] = score
 
-    # Teil-B-Clips sind oft Fortsetzungen. Sie bekommen keinen eigenen Stil,
-    # aber der vorhandene Stil wird leicht stabilisiert.
     if str(row.get("teil") or "").upper() == "B":
         for genre in list(scores):
             if scores[genre] > 0:

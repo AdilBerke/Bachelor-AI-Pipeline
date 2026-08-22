@@ -137,9 +137,6 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.plan and args.ausfuehren:
         parser.error("Bitte entweder --plan oder --ausfuehren nutzen, nicht beides.")
-    # Nutzerfreundlicher Standard: Wenn die Datei normal gestartet wird, soll sie
-    # auch wirklich lokal arbeiten. Der reine Sicherheitsmodus ist explizit
-    # --plan; Internet/Downloads sind nur mit --mit-downloads aktiv.
     args.ausfuehren = not args.plan
     if not args.mit_downloads:
         args.lokale_mp3s = True
@@ -441,9 +438,6 @@ def quelle_fertig(quelle: Quelle) -> bool:
     except json.JSONDecodeError:
         return False
     accepted = int(summary.get("accepted_count") or manifest_zeilen(dataset_dir))
-    # Auch reparierte Quellen sind fuer uns verwertbar. Wenn schon Clips
-    # existieren, vermeiden wir bewusst erneutes Clippen derselben grossen MP3,
-    # weil native Audio-Libs bei langen Quellen gelegentlich crashen.
     return bool(summary.get("training_ready")) and accepted > 0
 
 
@@ -860,11 +854,6 @@ def clippe_mp3(
                 starts.append(round(current, 3))
                 current += args.clip_hop_sec
             if clip_limit > 0 and len(starts) > clip_limit:
-                # Gleichmaessig ueber die gesamte Quelle verteilen statt nur
-                # die ersten N Clips zu nehmen. Bei mehrstuendigen Quellen
-                # (z. B. 8h-Mixen) blieb sonst der Grossteil des bereits
-                # heruntergeladenen Materials ungenutzt, weil der Deckel
-                # schon nach den ersten ca. 2 Stunden erreicht war.
                 if clip_limit == 1:
                     starts = [starts[0]]
                 else:
@@ -1237,10 +1226,6 @@ def main() -> int:
     trocken = not args.ausfuehren
     log_dir = REPORT_ORDNER / "logs" / run_name
 
-    # Vor dem Planen lokale Teilergebnisse retten. Wenn ein Clip-Lauf vorher
-    # abgebrochen wurde, liegen oft schon WAVs + JSON-Sidecars vor. Diese werden
-    # zuerst in Manifeste zurueckgeschrieben, damit keine MP3 erneut geschnitten
-    # wird und der Zielstand korrekt ist.
     vorab_reparatur = {"reparierte_datasets": 0, "reparierte_rows": 0, "details": []}
     vorab_dataset_code: int | str = ""
     if args.lokale_mp3s and not args.nur_download:

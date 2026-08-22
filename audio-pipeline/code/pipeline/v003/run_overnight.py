@@ -27,7 +27,6 @@ import time
 from pathlib import Path
 from typing import Optional
 
-# ─── Paths ────────────────────────────────────────────────────────────────────
 
 BASE = Path("/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio")
 BACH = BASE
@@ -52,22 +51,19 @@ DATASET_JSONL = DATASET_DIR / "dataset.jsonl"
 TRAIN_JSONL  = DATASET_DIR / "train.jsonl"
 VAL_JSONL    = DATASET_DIR / "validation.jsonl"
 
-# ─── Video params ─────────────────────────────────────────────────────────────
 
 TARGET_W     = 832
 TARGET_H     = 480
 TARGET_FPS   = 8
-TARGET_FRAMES = 65          # 8*8+1 — LTX bucket requirement
-TARGET_SECS  = TARGET_FRAMES / TARGET_FPS   # 8.125 s
-DOWNLOAD_SECS = 10          # download 10s to ensure enough frames after trimming
+TARGET_FRAMES = 65
+TARGET_SECS  = TARGET_FRAMES / TARGET_FPS
+DOWNLOAD_SECS = 10
 BUCKET       = f"{TARGET_W}x{TARGET_H}x{TARGET_FRAMES}"
 
 TRIGGER_TOKEN = "lofi_loop"
 MODEL_SOURCE  = "LTXV_2B_0.9.6_DEV"
 
-# ─── YouTube sources ──────────────────────────────────────────────────────────
 
-# Curated list of animated lofi videos — prioritises anime/illustrated scenes
 YOUTUBE_SOURCES = [
     ("rIFDqCYMOAQ", "Japanese Street Night — rainy japanese night street, neon sign reflections on wet cobblestones, dark moody blue tones, soft lantern light, peaceful quiet atmosphere"),
     ("8EM7btM7-XQ", "Rainy Night by the Fireplace — cozy indoor scene with fireplace glow, sleeping cat on wooden floor, warm amber lighting, rain on window"),
@@ -111,10 +107,8 @@ YOUTUBE_SOURCES = [
     ("3Rl4btmmkf0", "Chill And Sleep Lofi cat — cozy bed with cat, soft moonlight, peaceful sleeping atmosphere, gentle night scene"),
 ]
 
-# Additional timestamps per video (seconds from start)
 TIMESTAMPS = [30, 300, 900, 1800]
 
-# ─── Logging ──────────────────────────────────────────────────────────────────
 
 def setup_logging():
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -130,7 +124,6 @@ def setup_logging():
 
 log = logging.getLogger(__name__)
 
-# ─── State persistence ────────────────────────────────────────────────────────
 
 def load_state() -> dict:
     if STATE_FILE.exists():
@@ -146,7 +139,6 @@ def save_state(state: dict):
     STATE_FILE.write_text(json.dumps(state, indent=2, ensure_ascii=False))
 
 
-# ─── Step 1: Download ─────────────────────────────────────────────────────────
 
 def make_clip_filename(video_id: str, start_sec: int) -> str:
     return f"{video_id}_s{start_sec:04d}_d{DOWNLOAD_SECS}.mp4"
@@ -186,7 +178,7 @@ def download_clips(state: dict):
                 "--no-playlist",
                 "--output", out_tmpl,
                 "--merge-output-format", "mp4",
-                "--postprocessor-args", "ffmpeg:-an",  # no audio needed
+                "--postprocessor-args", "ffmpeg:-an",
                 "--quiet",
                 "--no-warnings",
                 url,
@@ -201,7 +193,6 @@ def download_clips(state: dict):
                     save_state(state)
                     new += 1
                 else:
-                    # try with webm → convert
                     webm_path = CLIPS_RAW / f"{video_id}_s{start:04d}_d{DOWNLOAD_SECS}.webm"
                     mkv_path  = CLIPS_RAW / f"{video_id}_s{start:04d}_d{DOWNLOAD_SECS}.mkv"
                     found = next((p for p in [webm_path, mkv_path] if p.exists()), None)
@@ -234,7 +225,6 @@ def download_clips(state: dict):
     save_state(state)
 
 
-# ─── Step 2: Quality filter + resize ─────────────────────────────────────────
 
 def probe_video(path: Path) -> Optional[dict]:
     try:
@@ -250,7 +240,6 @@ def probe_video(path: Path) -> Optional[dict]:
             return None
         w = int(vs.get("width", 0))
         h = int(vs.get("height", 0))
-        # parse fps
         fps_str = vs.get("r_frame_rate", "25/1")
         num, den = (int(x) for x in fps_str.split("/"))
         fps = num / den if den else 25
@@ -272,13 +261,12 @@ def detect_black_bars(path: Path) -> tuple[int, int, int, int]:
         matches = re.findall(r"crop=(\d+):(\d+):(\d+):(\d+)", r.stderr)
         if not matches:
             return (0, 0, 0, 0)
-        # use the most common crop value
         counts = {}
         for m in matches:
             key = tuple(int(x) for x in m)
             counts[key] = counts.get(key, 0) + 1
         best = max(counts, key=counts.__getitem__)
-        return best  # (w, h, x, y)
+        return best
     except Exception:
         return (0, 0, 0, 0)
 
@@ -292,7 +280,6 @@ def compute_motion_score(path: Path) -> float:
              "-frames:v", "20", "-f", "null", "-"],
             capture_output=True, text=True, timeout=30
         )
-        # parse YAVG from signalstats — but simpler: just count non-black frames via scene filter
         r2 = subprocess.run(
             [str(FFMPEG), "-i", str(path),
              "-vf", "scale=160:90,select=gt(scene\\,0.005),metadata=print:file=-",
@@ -302,22 +289,19 @@ def compute_motion_score(path: Path) -> float:
         motion_frames = r2.stdout.count("lavfi.scene_score")
         return min(1.0, motion_frames / 10.0)
     except Exception:
-        return 0.5  # assume ok if probe fails
+        return 0.5
 
 
 def quality_score(path: Path, info: dict) -> tuple[float, str]:
     """Return (score 0-5, reason) for a raw clip."""
     w, h = info["width"], info["height"]
 
-    # Minimum resolution
     if h < 240 or w < 320:
         return 0.0, "resolution too low"
 
-    # Must have enough frames
     if info["frames"] < TARGET_FRAMES:
         return 0.0, f"too short: {info['frames']} frames < {TARGET_FRAMES}"
 
-    # Black bar check
     crop_w, crop_h, crop_x, crop_y = detect_black_bars(path)
     if crop_w > 0 and crop_h > 0:
         bar_fraction_w = 1 - crop_w / w
@@ -327,13 +311,11 @@ def quality_score(path: Path, info: dict) -> tuple[float, str]:
     else:
         bar_fraction_w = bar_fraction_h = 0.0
 
-    # Motion check
     motion = compute_motion_score(path)
     if motion < 0.05:
         return 0.5, "nearly static"
 
-    # Score based on resolution and motion
-    res_score = min(1.0, min(w, h * 832 / 480) / 832)  # how close to 832x480
+    res_score = min(1.0, min(w, h * 832 / 480) / 832)
     score = 2.0 + res_score * 1.5 + motion * 1.5
     score -= bar_fraction_w * 2 + bar_fraction_h * 2
     return min(5.0, max(0.0, score)), "ok"
@@ -365,7 +347,6 @@ def resize_clip(src: Path, dst: Path) -> bool:
 
 def make_caption(video_id: str, desc: str) -> str:
     """Build a lofi training caption from the source description."""
-    # desc format: "Title — scene description"
     if " — " in desc:
         scene = desc.split(" — ", 1)[1]
     else:
@@ -392,7 +373,6 @@ def prepare_assets(state: dict):
         asset_name = stem + ".mp4"
         asset_path = ASSETS_DIR / asset_name
 
-        # Extract video_id from filename: <video_id>_s<start>_d<dur>.mp4
         parts = stem.rsplit("_s", 1)
         video_id = parts[0] if len(parts) == 2 else stem
 
@@ -434,7 +414,6 @@ def prepare_assets(state: dict):
     return rows
 
 
-# ─── Step 3: Build dataset ────────────────────────────────────────────────────
 
 def build_dataset(rows: list[dict], state: dict):
     log.info("=" * 60)
@@ -467,7 +446,6 @@ def build_dataset(rows: list[dict], state: dict):
     save_state(state)
 
 
-# ─── Step 4: LTX Preprocess ───────────────────────────────────────────────────
 
 def run_preprocess(state: dict):
     log.info("=" * 60)
@@ -476,7 +454,6 @@ def run_preprocess(state: dict):
 
     PRECOMPUTED.mkdir(parents=True, exist_ok=True)
 
-    # Count already precomputed latents
     latents_dir = PRECOMPUTED / "latents" / "assets"
     if latents_dir.exists():
         n_done = len(list(latents_dir.glob("*.pt")))
@@ -516,11 +493,9 @@ def run_preprocess(state: dict):
 
     if result.returncode != 0:
         log.error(f"Preprocess failed with code {result.returncode}")
-        # Try caption embedding path fix
         _fix_caption_embeddings()
         sys.exit(1)
 
-    # Fix potential caption embedding path issue
     _fix_caption_embeddings()
 
     state["completed_steps"] = list(set(state.get("completed_steps", [])) | {"preprocess"})
@@ -533,19 +508,15 @@ def _fix_caption_embeddings():
     conditions_assets = PRECOMPUTED / "conditions" / "assets"
     conditions_assets.mkdir(parents=True, exist_ok=True)
 
-    # The preprocessor may save .pt files at the absolute video path
-    # e.g. precomputed / home / BA_... / assets / clip_xxx.pt
-    # We need to move them to precomputed/conditions/assets/clip_xxx.pt
     for pt in PRECOMPUTED.rglob("*.pt"):
         if conditions_assets in pt.parents:
-            continue  # already in right place
+            continue
         target = conditions_assets / pt.name
         if not target.exists():
             log.info(f"  Moving condition embedding: {pt.name} → conditions/assets/")
             shutil.move(str(pt), str(target))
 
 
-# ─── Step 5: Train ────────────────────────────────────────────────────────────
 
 def find_latest_checkpoint() -> Optional[Path]:
     ckpt_dir = TRAIN_OUT / "checkpoints"
@@ -572,7 +543,6 @@ def run_training(state: dict):
 
     TRAIN_OUT.mkdir(parents=True, exist_ok=True)
 
-    # Resume from latest checkpoint if available
     latest_ckpt = find_latest_checkpoint()
     if latest_ckpt:
         log.info(f"Resuming from checkpoint: {latest_ckpt.name}")
@@ -588,7 +558,7 @@ def run_training(state: dict):
     cmd = [str(LTX_PYTHON), str(LTX_TRAIN), str(CONFIG_FILE)]
 
     log.info("Running: " + " ".join(cmd))
-    result = subprocess.run(cmd, env=env, timeout=28800)  # 8 hour timeout
+    result = subprocess.run(cmd, env=env, timeout=28800)
 
     if result.returncode != 0:
         log.error(f"Training failed with code {result.returncode}")
@@ -598,14 +568,12 @@ def run_training(state: dict):
     save_state(state)
     log.info("Training complete!")
 
-    # List final checkpoints
     ckpts = sorted((TRAIN_OUT / "checkpoints").glob("*.safetensors"))
     log.info(f"Saved {len(ckpts)} checkpoints:")
     for c in ckpts:
         log.info(f"  {c.name}")
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="LTX LoRA v003 overnight pipeline")
@@ -634,7 +602,6 @@ def main():
     if from_step <= 2:
         rows = prepare_assets(state)
     else:
-        # Rebuild rows from accepted_clips for downstream steps
         rows = []
         source_map = {vid: desc for vid, desc in YOUTUBE_SOURCES}
         for asset_name in state.get("accepted_clips", []):

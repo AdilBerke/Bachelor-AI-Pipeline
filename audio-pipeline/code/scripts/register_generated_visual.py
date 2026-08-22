@@ -18,8 +18,8 @@ for path in [str(CODE_ROOT), str(BACHELORARBEIT_ROOT), str(WORKSPACE_ROOT)]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
-from src.Video.generated_visuals import GeneratedVisualError, register_generated_visual  # noqa: E402
-from src.Video.visual_prompt_builder import build_visual_prompt, build_visual_settings  # noqa: E402
+from src.Video.generated_visuals import GeneratedVisualError, register_generated_visual
+from src.Video.visual_prompt_builder import build_visual_prompt, build_visual_settings
 
 
 def build_parser() -> argparse.ArgumentParser:

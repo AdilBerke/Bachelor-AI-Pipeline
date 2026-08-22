@@ -20,7 +20,7 @@ from typing import Any, Dict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT / "code" / "src" / "Training"))
-from audio_bewertung import decode_audio, score_kennwerte  # noqa: E402
+from audio_bewertung import decode_audio, score_kennwerte
 
 DATASET_ROOT = PROJECT_ROOT / "daten" / "processed" / "lora_training"
 

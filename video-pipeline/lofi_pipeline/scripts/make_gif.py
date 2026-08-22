@@ -30,7 +30,6 @@ ESRGAN_MODEL   = Path("/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio
                       "/tools/realesrgan-models/RealESRGAN_x4plus_anime_6B.pth")
 
 
-# ── Farb-Hilfsfunktionen ────────────────────────────────────────────────────
 
 def clr(c, t): return f"\033[{c}m{t}\033[0m"
 def cyan(t):   return clr("36", t)
@@ -39,7 +38,6 @@ def dim(t):    return clr("2",  t)
 def bold(t):   return clr("1",  t)
 
 
-# ── Schritt 1: minterpolate ─────────────────────────────────────────────────
 
 def interpolate(src: Path, dst: Path, target_fps: int = 24):
     print(cyan(f"\n[1/3] Frame-Interpolation {src.name} → {target_fps}fps"))
@@ -57,7 +55,6 @@ def interpolate(src: Path, dst: Path, target_fps: int = 24):
     print(green(f"  ✓ {dst.name}"))
 
 
-# ── Schritt 2: Real-ESRGAN Upscaling ───────────────────────────────────────
 
 def upscale_video(src: Path, dst: Path):
     print(cyan(f"\n[2/3] Real-ESRGAN 4x Anime Upscaling"))
@@ -89,7 +86,7 @@ def upscale_video(src: Path, dst: Path):
     h   = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    out_w, out_h = w * 2, h * 2   # 4x → resize to 2x (1920×1088)
+    out_w, out_h = w * 2, h * 2
     print(dim(f"  {w}×{h} → {w*4}×{h*4} → resize {out_w}×{out_h}  |  {total} frames  |  {device}"))
 
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
@@ -103,7 +100,7 @@ def upscale_video(src: Path, dst: Path):
         if not ok:
             break
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        sr, _ = upsampler.enhance(rgb, outscale=2)  # 2x = 1920×1088
+        sr, _ = upsampler.enhance(rgb, outscale=2)
         out.write(cv2.cvtColor(sr, cv2.COLOR_RGB2BGR))
         if (i + 1) % 10 == 0 or i == total - 1:
             print(dim(f"  Frame {i+1}/{total}"), end="\r")
@@ -112,7 +109,6 @@ def upscale_video(src: Path, dst: Path):
     out.release()
     print()
 
-    # Re-encode mit korrekten Farbmetadaten
     cmd = [
         "ffmpeg", "-y", "-i", tmp_path,
         "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p",
@@ -124,20 +120,17 @@ def upscale_video(src: Path, dst: Path):
     print(green(f"  ✓ {dst.name}  ({out_w}×{out_h})"))
 
 
-# ── Schritt 3a: GIF erstellen ───────────────────────────────────────────────
 
 def make_gif(src: Path, dst: Path, fps: int = 15, width: int = 960):
     print(cyan(f"\n[3/3] GIF erstellen ({width}px, {fps}fps)"))
     palette_tmp = dst.with_suffix(".palette.png")
 
-    # Palette generieren
     subprocess.run([
         "ffmpeg", "-y", "-i", str(src),
         "-vf", f"fps={fps},scale={width}:-1:flags=lanczos,palettegen=max_colors=256:stats_mode=diff",
         str(palette_tmp),
     ], capture_output=True, check=True)
 
-    # GIF mit Palette
     subprocess.run([
         "ffmpeg", "-y", "-i", str(src), "-i", str(palette_tmp),
         "-filter_complex",
@@ -154,7 +147,6 @@ def make_gif(src: Path, dst: Path, fps: int = 15, width: int = 960):
         print(dim(f"  Hinweis: GIF > 15MB — mit --gif-width 640 verkleinern"))
 
 
-# ── Schritt 3b: Finales MP4 ─────────────────────────────────────────────────
 
 def finalize_mp4(src: Path, dst: Path):
     """Kopiert nur Metadaten neu — kein Re-Encode."""
@@ -168,7 +160,6 @@ def finalize_mp4(src: Path, dst: Path):
     print(green(f"  ✓ {dst.name}  ({size_mb:.1f} MB)"))
 
 
-# ── Main ────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="GIF + MP4 Pipeline")
@@ -195,23 +186,19 @@ def main():
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
 
-        # Schritt 1: Interpolation
         interp_mp4 = tmp / "interp.mp4"
         interpolate(src, interp_mp4, args.interp_fps)
 
         if args.no_upscale:
             work_mp4 = interp_mp4
         else:
-            # Schritt 2: Upscaling
             upscaled_mp4 = tmp / "upscaled.mp4"
             upscale_video(interp_mp4, upscaled_mp4)
             work_mp4 = upscaled_mp4
 
-        # Schritt 3a: GIF
         gif_out = Path(str(prefix) + "_final.gif")
         make_gif(work_mp4, gif_out, args.gif_fps, args.gif_width)
 
-        # Schritt 3b: MP4
         if not args.gif_only:
             mp4_out = Path(str(prefix) + "_final.mp4")
             print(cyan(f"\n[3b/3] MP4 finalisieren"))

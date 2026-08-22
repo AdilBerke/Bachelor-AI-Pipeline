@@ -576,10 +576,6 @@ def load_lora_checkpoint_kompatibel(model: Any, adapter_path: Path, helpers: typ
 
     import torch
 
-    # Den Adapter zuerst auf CPU laden. Direktes Laden auf CUDA kann bei
-    # grossen Checkpoints und instabiler CUDA-Umgebung native Loader-Fehler
-    # ausloesen; die Tensoren werden unten kontrolliert auf das Zielgeraet
-    # verschoben.
     payload = torch.load(adapter_path, map_location="cpu")
     if payload.get("format") != "musicgen_lora_adapter_v1":
         raise ValueError(f"Unsupported LoRA checkpoint format: {adapter_path}")
@@ -632,7 +628,7 @@ def optional_librosa() -> Any:
         return _LIBROSA
     _LIBROSA_CHECKED = True
     try:
-        import librosa  # type: ignore
+        import librosa
 
         _LIBROSA = librosa
     except Exception:
@@ -710,8 +706,6 @@ def estimate_bpm_from_rms_onsets(audio: np.ndarray, target_bpm: float) -> Option
         left = onset[:-lag]
         right = onset[lag:]
         score = float(np.dot(left, right)) / (float(np.linalg.norm(left) * np.linalg.norm(right)) + EPS)
-        # Bei Lofi ist die Onset-Schaetzung oft verrauscht. Eine leichte
-        # Zielnaehe-Priorisierung stabilisiert Half-/Double-Time-Ausreisser.
         proximity = max(0.75, 1.0 - abs(float(bpm) - target_bpm) / max(target_bpm, EPS) * 0.2)
         score *= proximity
         if score > best_score:
@@ -1084,9 +1078,6 @@ def audio_metrics(
         else:
             bpm_status = "PROBLEM"
 
-    # Die harten Gruende entfernen einen Kandidaten. Warnungen bleiben im
-    # Report, damit musikalisch brauchbare MusicGen-Clips nicht nur wegen der
-    # ueblichen Lautheitsnormalisierung verworfen werden.
     reasons: List[str] = []
     warnings_list: List[str] = []
     if abs(duration - expected_duration) > 1.0:
@@ -1189,9 +1180,6 @@ def audio_metrics(
 def spectral_ratios(audio: np.ndarray) -> tuple[float, float, float]:
     if len(audio) < SAMPLE_RATE:
         return 0.0, 0.0, 0.0
-    # Bei langen MusicGen-Fortsetzungen darf nicht nur der Anfang entscheiden.
-    # Vier gleichmaessig verteilte 5s-Fenster erfassen auch spaetere Bass-,
-    # Shaker- oder Signalton-Probleme, ohne eine riesige FFT zu erzeugen.
     maximum_frames = SAMPLE_RATE * 20
     if len(audio) <= maximum_frames:
         samples = [audio]
@@ -1807,21 +1795,21 @@ def score_kandidat(metrics: Dict[str, Any]) -> float:
     movement = optional_float(metrics.get("musical_movement_score")) or 0.0
     spectral_movement = optional_float(metrics.get("spectral_movement")) or 0.0
     return (
-        bass * 4.2        # Bass-Dominanz: groesster Kritikpunkt
+        bass * 4.2
         + max(0.0, bass - 0.36) * 12.0
-        + snare * 1.8     # Snare-/Shaker-Bereich: hart an Uebergaengen
-        + high * 4.0      # Shaker/Hoehen: zweithaeufigster Kritikpunkt
+        + snare * 1.8
+        + high * 4.0
         + max(0.0, high - 0.10) * 16.0
-        + tone * 1.5      # Signalton / Monotonie
-        + max(0.0, 0.35 - movement) * 6.0  # zu statische 30s-Clips vermeiden
+        + tone * 1.5
+        + max(0.0, 0.35 - movement) * 6.0
         + max(0.0, 0.020 - spectral_movement) * 30.0
-        + half_drop * 0.08  # Ton-Einbruch in zweiter Haelfte
-        + quiet_run * 0.35  # lange leise Stellen zerstoeren spaetere Uebergaenge
-        + bpm_diff * 0.04   # BPM-Abweichung
-        + max(0.0, 0.95 - active) * 4.0  # Kandidaten sollen bis zum Ende tragen
-        + max(0.0, 1.0 - active_seconds) * 8.0  # jede einzelne Sekunde soll hoerbar sein
+        + half_drop * 0.08
+        + quiet_run * 0.35
+        + bpm_diff * 0.04
+        + max(0.0, 0.95 - active) * 4.0
+        + max(0.0, 1.0 - active_seconds) * 8.0
         + silent_seconds * 2.0
-        - active * 0.3    # Bonus fuer durchgehend aktive Audio
+        - active * 0.3
     )
 
 
@@ -2713,9 +2701,6 @@ def plan_sections(
         prompt_offset = rng.randrange(len(variants))
         block_prompt = variants[prompt_offset]
         if nutzt_einen_clip_pro_block(args):
-            # Ab Block 2 wird die Crossfade-Zeit zusaetzlich erzeugt. Dadurch
-            # traegt jeder Block netto seine geplante Dauer bei und ein
-            # Zwei-Stunden-Lauf bleibt bei genau 24 Fuenf-Minuten-Bloecken.
             material_duration = block_duration + (crossfade_seconds if block_index > 1 else 0.0)
             section_index = len(sections) + 1
             sections.append(
@@ -2732,9 +2717,6 @@ def plan_sections(
             continue
         abschnitt_im_block = 0
         while cursor < block_end - 0.001:
-            # Die Blockgrenze ist musikalische Planung, aber jeder MusicGen-
-            # Kandidat bleibt ein voller 30s-Clip. Kurze Restclips klingen
-            # in Longform besonders oft wie harte Wechsel.
             end = cursor + args.abschnitt_sekunden
             section_index = len(sections) + 1
             sections.append(
@@ -2957,14 +2939,6 @@ def generate_candidate(
             wav = model.generate([prompt], progress=True)[0].cpu()
     finally:
         model.set_custom_progress_callback(None)
-    # audiocrafts eigene "loudness"-Normalisierung zielt auf ein lauteres
-    # Profil (kaum Headroom, Peak nahe 0 dB) als unsere Referenz-Tracks.
-    # Dadurch wurden Kandidaten unten in audio_metrics()/score_mp3_referenz()
-    # gegen ein Lautheitsprofil geprueft, das sie mangels Normalisierung
-    # praktisch nie treffen konnten. Deshalb hier direkt mit demselben
-    # normalize_audio()-Ziel schreiben, das auch build_longform() fuer die
-    # finale Audio verwendet - Pruefung und Endergebnis sehen dann dieselbe
-    # Lautstaerke.
     audio = normalize_audio(wav.numpy().reshape(-1), args.ziel_rms_db, args.peak_limit)
     write_wav(target, audio)
     return target

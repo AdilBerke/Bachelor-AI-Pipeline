@@ -21,7 +21,6 @@ PIPELINE_ROOT = Path(__file__).parent.parent
 SCENARIOS_DIR = PIPELINE_ROOT / "scenarios"
 CONFIGS_DIR = PIPELINE_ROOT / "configs"
 
-# ── Korrektur-Definitionen ──────────────────────────────────────────────────
 CORRECTIONS = {
     "1":  ("Ohren fehlen / nicht sichtbar",
            "both rabbits with long clearly visible upright ears, prominent tall ears",
@@ -68,7 +67,6 @@ CORRECTIONS = {
 }
 
 
-# ── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
 def load_yaml(path):
     with open(path) as f:
@@ -154,7 +152,6 @@ def find_checkpoint(sample_path: Path):
         ckpt = round_dir / "checkpoints" / f"lora_weights_step_{m.group(1)}.safetensors"
         if ckpt.exists():
             return ckpt
-    # Fallback: neuester Checkpoint im Round
     ckpt_dir = round_dir / "checkpoints"
     if ckpt_dir.exists():
         ckpts = sorted(ckpt_dir.glob("lora_weights_step_*.safetensors"))
@@ -186,7 +183,6 @@ def apply_corrections(scenario_id, correction_ids):
     cfg["prompt"] = prompt
     cfg["negative_prompt"] = negative
 
-    # Backup
     scenario_path.with_suffix(".yaml.bak").write_text(scenario_path.read_text())
     with open(scenario_path, "w") as f:
         yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False, width=120)
@@ -242,18 +238,15 @@ def start_train(scenario_id, checkpoint=None, steps=50):
         subprocess.Popen(cmd, env=env, stdout=lf, stderr=subprocess.STDOUT)
 
 
-# ── Hauptfunktion: ein Sample bewerten ──────────────────────────────────────
 
 def review_sample(scenario_id, sample_path: Path):
     print("\n" + "═" * 56)
     print(bold(f"  📹  {sample_path.parent.parent.name} / {sample_path.name}"))
     print("═" * 56)
 
-    # Datei im System-Viewer öffnen
     open_viewer(sample_path)
     print(dim("  (Video/GIF öffnet sich automatisch im Bildbetrachter)"))
 
-    # ── Bewertung ──
     while True:
         try:
             r = input(yellow("\nBewertung (1–10, Enter=überspringen): ")).strip()
@@ -268,7 +261,6 @@ def review_sample(scenario_id, sample_path: Path):
             print(dim("\n  Abgebrochen."))
             return
 
-    # ── Korrekturen ──
     print(yellow("\nProbleme auswählen (Nummern mit Komma, Enter=keine):"))
     for num, (label, _, _, needs_train) in CORRECTIONS.items():
         marker = yellow("⚡") if needs_train else " "
@@ -279,10 +271,8 @@ def review_sample(scenario_id, sample_path: Path):
     correction_ids = [c.strip() for c in corr_input.split(",") if c.strip()] if corr_input else []
     valid_ids = [c for c in correction_ids if c in CORRECTIONS]
 
-    # ── Notiz ──
     note = input(yellow("Eigene Anmerkung (Enter=leer): ")).strip()
 
-    # ── Speichern ──
     key = f"{sample_path.parent.parent.name}/{sample_path.name}"
     save_rating(scenario_id, key, rating, note, valid_ids)
     print(green(f"\n  ✓ Bewertung {rating}/10 gespeichert"))
@@ -291,7 +281,6 @@ def review_sample(scenario_id, sample_path: Path):
         print(dim("  Keine Korrekturen ausgewählt."))
         return
 
-    # ── Korrekturen anzeigen ──
     print(cyan("\n  Korrekturen:"))
     for cid in valid_ids:
         print(f"    • {CORRECTIONS[cid][0]}")
@@ -299,7 +288,6 @@ def review_sample(scenario_id, sample_path: Path):
     needs_training = apply_corrections(scenario_id, valid_ids)
     print(green("  ✓ Prompt in scenario.yaml aktualisiert"))
 
-    # ── Aktion wählen ──
     checkpoint = find_checkpoint(sample_path)
     if needs_training:
         print(yellow("\n  ⚡ Einige Korrekturen brauchen eine Trainingsrunde."))
@@ -327,7 +315,6 @@ def review_sample(scenario_id, sample_path: Path):
         print(dim("  OK, nichts gestartet."))
 
 
-# ── Modi ────────────────────────────────────────────────────────────────────
 
 def get_samples(scenario_id, round_filter=None):
     """Alle Samples eines Szenarios."""
@@ -397,7 +384,6 @@ def round_mode(scenario_id, round_num):
         review_sample(scenario_id, f)
 
 
-# ── Main ────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Lo-Fi Feedback Tool")

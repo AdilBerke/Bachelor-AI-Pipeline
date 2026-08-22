@@ -25,7 +25,7 @@ warnings.filterwarnings(
     message="'audioop' is deprecated.*",
     category=DeprecationWarning,
 )
-import audioop  # noqa: E402
+import audioop
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DATASET_ROOT = PROJECT_ROOT / "daten" / "processed" / "lora_training"

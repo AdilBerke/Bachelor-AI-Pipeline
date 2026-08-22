@@ -41,18 +41,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ---------------------------------------------------------------------------
-# Globale Projektpfade
-# ---------------------------------------------------------------------------
-# Alle Standardpfade werden aus der Projektwurzel abgeleitet. Dadurch kann die
-# Pipeline auf einem anderen lokalen Rechner gleich gestartet werden, solange
-# die Ordnerstruktur erhalten bleibt.
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = PROJECT_ROOT / "code" / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from Merkmale.audio_merkmale import extract_features  # noqa: E402
+from Merkmale.audio_merkmale import extract_features
 
 PYTHON = PROJECT_ROOT / ".venv" / "bin" / "python"
 if not PYTHON.exists():
@@ -107,9 +101,6 @@ def adapter_fuer_audio_freigegeben(adapter_path: Path) -> bool:
         return False
     return plan.get("status") == "finished" and int(plan.get("returncode") or 0) == 0
 
-# Woerter, mit denen menschliche Bewertungen automatisch grob eingeordnet
-# werden. Diese technische Vorauswahl ersetzt nicht die menschliche Bewertung;
-# sie hilft nur dabei, fuer Longform-Audios eher brauchbare Clips zu finden.
 BAD_REVIEW_WORDS = (
     "schlecht",
     "kein ton",

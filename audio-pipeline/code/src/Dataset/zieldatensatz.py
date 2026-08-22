@@ -167,9 +167,6 @@ def clip_key(row: dict[str, Any]) -> str:
     source = source_key(row)
     start = row.get("start_time_sec", row.get("clip_start_sec", ""))
     end = row.get("end_time_sec", row.get("clip_end_sec", ""))
-    # Der Dateiname gehoert bewusst nicht zum Schluessel. Beim Nachclippen aus
-    # derselben MP3 koennen identische Zeitfenster in einem anderen Ordner
-    # landen; diese sollen fuer LoRA nicht doppelt gezaehlt werden.
     return f"{source}|{sekundenwert(start)}|{sekundenwert(end)}"
 
 

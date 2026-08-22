@@ -127,7 +127,6 @@ def main():
 
     seed = args.seed if args.seed is not None else scenario_cfg["seed"]
 
-    # --gif-only: run full GIF+MP4 pipeline on existing MP4s without re-generation
     if args.gif_only:
         mp4s = sorted(p for p in samples_dir.glob("step_*.mp4") if "upscaled" not in p.stem)
         if not mp4s:
@@ -168,7 +167,6 @@ def main():
         step_num = int(ckpt.stem.split("_")[-1])
         mp4_out = samples_dir / f"step_{step_num:05d}_0.mp4"
         if i > 0:
-            # Brief pause between generations to allow GPU memory to fully release
             time.sleep(8)
         ok = generate_for_checkpoint(scenario_cfg, paths_cfg, ckpt, mp4_out, seed, args.gif, gpu_fraction=args.gpu_fraction)
         if ok:

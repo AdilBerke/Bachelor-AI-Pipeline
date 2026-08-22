@@ -44,7 +44,7 @@ if str(DATASET_SRC) not in sys.path:
     sys.path.insert(0, str(DATASET_SRC))
 try:
     from genre_regeln import QUELLEN_REGEL_VERSION
-except Exception:  # pragma: no cover - API bleibt auch isoliert startbar
+except Exception:
     QUELLEN_REGEL_VERSION = "lofi_quellen_v4_guitar_breiter_2026_08_11"
 
 UNTERSTUETZTE_TOP5_REGEL_VERSIONEN = {
@@ -60,11 +60,6 @@ ZIELDATENSATZ_SCRIPT = ROOT / "code" / "src" / "Dataset" / "zieldatensatz.py"
 IMPORT_30S_ROOT = ROOT / "daten" / "processed" / "musicgen_youtube_import_30s"
 JOB_DIR = ROOT / "training" / "musicgen" / "web_jobs"
 
-# YouTube-Bot-Sperre umgehen: quellen_suche.py liest YTDLP_COOKIE_FILE bereits
-# selbst aus (build_ydl_opts). Liegt hier eine exportierte cookies.txt, wird sie
-# an alle Subprozesse vererbt (Popen ohne eigenes env erbt os.environ) - sowohl
-# fuer einzelne Importe als auch fuer den Massenimport. Datei ist ein echtes
-# Anmelde-Credential und darf NIE ins Git (siehe .gitignore).
 YOUTUBE_COOKIES_FILE = ROOT / "code" / "configs" / "youtube_cookies.txt"
 if YOUTUBE_COOKIES_FILE.exists():
     os.environ.setdefault("YTDLP_COOKIE_FILE", str(YOUTUBE_COOKIES_FILE))
@@ -87,14 +82,6 @@ SOURCE_METADATA_FILES = (
     ROOT / "daten" / "metadata" / "downloads" / "youtube_manuelle_mp3_importe.jsonl",
     MANUAL_UPLOADS_META,
 )
-# Achtung: "youtube_manual_mp3_imports.jsonl" (importer "manual_youtube_mp3")
-# wird NICHT nur beim manuellen Website-Import geschrieben, sondern auch von
-# der automatisierten Top10-Download-Pipeline (clips_vorbereiten.py ruft
-# intern denselben `quellen_suche.py mp3`-Befehl auf). Der Importer-Wert
-# allein sagt also nichts darueber aus, ob ein Mensch die Quelle bewusst
-# ausgewaehlt hat. Echte manuelle Kuration wird deshalb separat markiert:
-# Datei-Uploads ueber "manual_upload", Website-Link-Importe ueber die
-# Video-IDs in WEBSITE_MANUAL_IMPORTS_META (von make_mp3_job geschrieben).
 MANUAL_IMPORTERS = {"manual_upload"}
 UPLOAD_FORMATS = {"mp3", "wav", "m4a"}
 PROCESSED_CLIP_ROOT = ROOT / "daten" / "processed"
@@ -106,7 +93,6 @@ LORA_SPLIT_FILES = (
 REVIEWS_FILE = ROOT / "training" / "bewertungen" / "musicgen" / "website_reviews.json"
 CORS_ORIGIN = os.environ.get("LOFILAB_CORS_ORIGIN", "*").strip() or "*"
 
-# ── Lo-Fi Video Pipeline ──────────────────────────────────────────────────────
 LOFI_PIPELINE = ROOT / "Bachelorarbeit" / "lofi_pipeline"
 LOFI_SCENARIOS_DIR = LOFI_PIPELINE / "scenarios"
 LOFI_CONFIGS_DIR = LOFI_PIPELINE / "configs"
@@ -315,10 +301,6 @@ def _latest_top10_files() -> dict[str, Path]:
     if not report_dir.exists():
         return {}
 
-    # Laengste Genre-Keys zuerst pruefen: verhindert, dass ein kuerzerer Key,
-    # der zufaellig Teilstring eines anderen ist (z.B. bei spaeter per
-    # "Genre hinzufuegen" angelegten Genres), eine Datei faelschlich an sich
-    # reisst, bevor der eigentlich passende, spezifischere Key drankommt.
     known_genres = sorted(load_genres().keys(), key=len, reverse=True)
     candidates: dict[str, list[Path]] = {}
     for path in report_dir.glob("top10_*.csv"):
@@ -332,14 +314,9 @@ def _latest_top10_files() -> dict[str, Path]:
 
     latest: dict[str, Path] = {}
     for genre_key, paths in candidates.items():
-        # Nur Dateien mit echten Abrufzahlen sind ueberhaupt verwendbar.
         usable = [p for p in paths if _top10_quality(p)[0] > 0]
         if not usable:
             continue
-        # Unter den verwendbaren Dateien gewinnt die juengste: bei mehreren
-        # Laeufen am selben Tag (z.B. waehrend der Entwicklung) ersetzt ein
-        # neuerer, korrigierter Lauf einen aelteren - unabhaengig davon, wie
-        # viele Zeilen er hat.
         latest[genre_key] = max(usable, key=lambda p: p.stat().st_mtime)
     return latest
 
@@ -362,7 +339,7 @@ def top10_video_ids() -> set[str]:
     return ids
 
 
-MIN_TOP10_ENTRIES_FUER_BEREINIGUNG = 4  # von max. 5 je Genre
+MIN_TOP10_ENTRIES_FUER_BEREINIGUNG = 4
 
 
 def _unvollstaendige_top10_genres() -> list[str]:
@@ -746,12 +723,6 @@ def _append_line(job_id: str, line: str) -> None:
         lines = list(job.get("lastLines") or [])
         lines.append(line.rstrip())
         job["lastLines"] = lines[-30:]
-        # Bei mehrteiligen Jobs (z.B. Testaudios: 1 Befehl pro Genre) beschreibt
-        # der in der Zeile gefundene Prozentwert nur den Fortschritt INNERHALB
-        # des aktuell laufenden Befehls, nicht den des Gesamtjobs. Ohne diese
-        # Umrechnung wuerde z.B. "Genre 1/5 bei 90%" den Balken auf 90% springen
-        # lassen und er bliebe dort haengen, sobald Genre 2 bei 0% neu beginnt
-        # (progress darf wegen max() nie sinken).
         command_total = max(1, int(job.get("commandTotal") or 1))
         command_index = max(1, int(job.get("commandIndex") or 1))
         command_progress = _progress_from_line(line, float(job.get("commandProgress") or 0.0))
@@ -766,19 +737,9 @@ def _append_line(job_id: str, line: str) -> None:
 def _progress_from_line(line: str, current: float) -> float | None:
     """Bekannte Terminalmuster in 0..1-Fortschritt uebersetzen."""
 
-    # Echter Gesamtfortschritt der Live-Anzeige bei der Audio-Generierung
-    # (z.B. "Gesamt:        0.78%") - hat Vorrang vor der generischen
-    # Prozent-Erkennung unten, die sonst auch unbeteiligte Prozentwerte aus
-    # anderen Zeilen (z.B. "VRAM-Limit aktiv: 80.0%") aufgreifen wuerde und
-    # den Balken dann faelschlich bei diesem hohen Wert festnagelt.
     gesamt = re.search(r"Gesamt:\s*(\d+(?:\.\d+)?)\s*%", line)
     if gesamt:
         return min(1.0, max(current, float(gesamt.group(1)) / 100.0))
-    # LoRA-Training meldet "Trainingsbeispiele: N/Ziel | Rest: X%" - "Rest"
-    # zaehlt rueckwaerts von 100% auf 0%, das Gegenteil von Fortschritt. Ohne
-    # Sonderbehandlung wuerde die generische Prozent-Erkennung unten diesen
-    # Rest-Wert als Fortschritt lesen und den Balken gleich zu Trainingsbeginn
-    # faelschlich auf ueber 90% springen lassen (dort dann via max() haengen).
     trainingsbeispiele = re.search(r"Trainingsbeispiele:\s*(\d+)\s*/\s*(\d+)", line)
     if trainingsbeispiele:
         done = float(trainingsbeispiele.group(1))
@@ -789,10 +750,6 @@ def _progress_from_line(line: str, current: float) -> float | None:
     percent = re.search(r"(\d+(?:\.\d+)?)\s*%", line)
     if percent:
         return min(1.0, max(current, float(percent.group(1)) / 100.0))
-    # Top10-Suche hat zwei Phasen: erst die Suchanfragen (laufzeitdominant),
-    # danach Detail-Metadaten nur noch fuer die wenigen echten Treffer. Beide
-    # bekommen einen eigenen Anteil an der Fortschrittsanzeige, statt dass
-    # die Leiste erst bei 1% haengt und dann direkt auf 100% springt.
     for pattern, phase_start, phase_end in (
         (r"Suche\s+(\d+)\s*/\s*(\d+)", 0.02, 0.75),
         (r"Details\s+(\d+)\s*/\s*(\d+)", 0.75, 0.97),
@@ -1349,7 +1306,6 @@ def _video_gallery_map() -> dict[str, Path]:
         for gif_path in root.rglob("*.gif"):
             if gif_path.is_file():
                 mapping[_gallery_id(gif_path)] = gif_path
-        # MP4s nur aus samples/-Ordnern (keine Trainings-Quell-Videos)
         for mp4_path in root.rglob("*.mp4"):
             if mp4_path.parent.name == "samples" and mp4_path.is_file():
                 mapping[_gallery_id(mp4_path)] = mp4_path
@@ -1443,7 +1399,6 @@ def video_gallery_payload() -> list[dict[str, Any]]:
                 "step": _gallery_step(path.name),
             }
         )
-    # Sortierung: Szenario, dann Round absteigend, dann Step absteigend
     rows.sort(key=lambda row: (str(row["scenario"]), -int(row["round"]), -int(row["step"])))
     return rows
 
@@ -1683,7 +1638,6 @@ def _list_value(value: Any) -> list[str]:
     return [part.strip() for part in str(value or "").split(",") if part.strip()]
 
 
-# ── Video-Pipeline-Hilfsfunktionen ───────────────────────────────────────────
 
 _VIDEO_CORRECTIONS: dict[str, dict[str, str | bool]] = {
     "keine_animation": {
@@ -1734,7 +1688,6 @@ _VIDEO_CORRECTIONS: dict[str, dict[str, str | bool]] = {
         "prompt_add": "calm closed peaceful expression",
         "negative_add": "open mouth, surprised, anxious expression",
     },
-    # ── Neue Korrekturen (Feedback-to-Action-Matrix) ─────────────────────────
     "ueberbelichtung": {
         "prompt_add": "natural exposure, soft ambient lighting, gentle warm tones, shadow detail preserved",
         "negative_add": "overexposed, blown out highlights, white sky, washed out scenery, harsh bright light",
@@ -1761,7 +1714,7 @@ def _lofi_python() -> str:
     """Python-Interpreter fuer Lo-Fi Pipeline aus model_paths.yaml lesen."""
     cfg_path = LOFI_CONFIGS_DIR / "model_paths.yaml"
     try:
-        import yaml  # type: ignore
+        import yaml
         with open(cfg_path) as fh:
             cfg = yaml.safe_load(fh)
         return str(cfg.get("python") or PYTHON_CMD)
@@ -1810,12 +1763,11 @@ def _build_video_scenario_yaml(body: dict[str, Any]) -> dict[str, Any]:
 
 def video_create_scenario(body: dict[str, Any]) -> dict[str, Any]:
     """Neues Szenario aus Website-Formular anlegen."""
-    import yaml  # type: ignore
+    import yaml
 
     name = slug(str(body.get("name") or "neue_szene"))
     scenario_dir = LOFI_SCENARIOS_DIR / name
     if scenario_dir.exists():
-        # Eindeutigen Namen mit Zeitstempel vergeben
         name = f"{name}_{datetime.now().strftime('%m%d_%H%M')}"
         scenario_dir = LOFI_SCENARIOS_DIR / name
 
@@ -1831,7 +1783,6 @@ def video_create_scenario(body: dict[str, Any]) -> dict[str, Any]:
 def video_youtube_search(body: dict[str, Any]) -> dict[str, Any]:
     """YouTube mit yt-dlp suchen — filtert Compilations (>30min) heraus."""
     query = str(body.get("query") or "").strip()
-    # Mehr suchen als nötig, da Compilations rausgefiltert werden
     want = max(1, min(int(body.get("count") or 8), 15))
     fetch = min(want * 2, 20)
     if not query:
@@ -1867,8 +1818,6 @@ def video_youtube_search(body: dict[str, Any]) -> dict[str, Any]:
                 dur_str = f"{minutes}:{seconds:02d}"
             else:
                 dur_str = "?"
-            # Signed ytimg-URLs (sqp=, rs=) erfordern YouTube-Referer und sind nicht direkt ladbar.
-            # Saubere hqdefault.jpg-URLs sind stabiler und immer verfügbar.
             thumb_url = f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg" if vid_id else ""
             view_count = entry.get("view_count") or 0
             videos.append({
@@ -1940,7 +1889,6 @@ def video_resolve_url(body: dict[str, Any]) -> dict[str, Any]:
         "--no-warnings", "--quiet",
     ], capture_output=True, text=True, timeout=30)
     if result.returncode != 0 or not result.stdout.strip():
-        # Fallback: Video-ID direkt aus URL extrahieren (yt-dlp-Fehler, z.B. Bot-Sperre)
         from urllib.parse import urlparse, parse_qs as _pqs
         _parsed = urlparse(url)
         vid_id = None
@@ -1982,7 +1930,7 @@ def video_resolve_url(body: dict[str, Any]) -> dict[str, Any]:
 
 def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
     """Download → Clips schneiden → Dataset → Preprocess → LoRA-Training."""
-    import yaml as _yaml  # type: ignore
+    import yaml as _yaml
 
     scenario_id = str(body.get("scenario_id") or "").strip()
     if not scenario_id:
@@ -1992,10 +1940,7 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"Szenario nicht gefunden: {scenario_id}")
 
     steps = int(body.get("steps") or 200)
-    # selected_videos: [{id, url, title, class_label}]
     selected_videos: list[dict] = list(body.get("selected_videos") or [])
-    # force_preprocess: Preprocess erzwingen auch wenn precomputed_dir bereits existiert
-    # (nötig wenn Prompt geändert wurde — T5-Embeddings müssen neu berechnet werden)
     force_preprocess: bool = bool(body.get("force_preprocess") or False)
 
     job_id = f"video_train_{scenario_id}_{int(datetime.now().timestamp())}"
@@ -2005,11 +1950,11 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
         "kind": f"video_train_{scenario_id}",
         "startedAt": datetime.now().isoformat(),
         "done": False, "output": "", "returncode": None,
-        "progress": 0,       # 0–100
-        "phase": "",         # Beschriftung der aktuellen Phase
-        "trainStep": 0,      # Aktueller Training-Step
-        "trainTotal": steps, # Gesamt-Steps
-        "round": _next_video_round(scenario_id),  # Runde die dieses Training erstellt
+        "progress": 0,
+        "phase": "",
+        "trainStep": 0,
+        "trainTotal": steps,
+        "round": _next_video_round(scenario_id),
     }
 
     def _set(progress: int, phase: str, output: str = "") -> None:
@@ -2029,7 +1974,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
             scenario_cfg = _yaml.safe_load(fh) or {}
         prompt = str(scenario_cfg.get("prompt") or "lofi_girl, animated background loop")
 
-        # ── Schritt 1: Download + Clips ────────────────────────────────────
         total_vids = max(len(selected_videos), 1)
         dataset_entries: list[dict] = []
 
@@ -2042,7 +1986,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
 
             src_path = assets_dir / f"src_{vid_id}.mp4"
             if not src_path.exists():
-                # Nur Minute 2–12 laden (Intro überspringen, nur 10 min für Clips nötig)
                 subprocess.run([
                     "yt-dlp", url, "-o", str(src_path),
                     "--format", "best[height<=480][ext=mp4]/best[height<=480]/best",
@@ -2084,8 +2027,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
                     clip_idx += 1
                 start += INTERVAL
 
-        # Fallback: Bestehende Clips aus assets/clips/ wiederverwenden
-        # (für Runde 2+ wenn keine neuen Videos angegeben werden)
         if not dataset_entries and not selected_videos:
             for clip_file in sorted(clips_dir.glob("*.mp4")):
                 dataset_entries.append({
@@ -2099,7 +2040,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
             JOBS[job_id]["returncode"] = 1
             return
 
-        # ── Schritt 2: Dataset schreiben ───────────────────────────────────
         _set(20, f"2/4 · Dataset ({len(dataset_entries)} Clips)", "Schreibe dataset.jsonl…")
         dataset_path = scenario_dir / "dataset.jsonl"
         with open(dataset_path, "w") as fh:
@@ -2110,9 +2050,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
         with open(scenario_dir / "scenario.yaml", "w") as fh:
             _yaml.dump(scenario_cfg, fh, default_flow_style=False, allow_unicode=True)
 
-        # ── Schritt 3: Preprocess (nur wenn nötig) ────────────────────────
-        # Preprocess überspringen wenn: keine neuen Videos UND precomputed_dir
-        # bereits befüllt (Latents + Conditions aus vorheriger Runde).
         precomputed_dir = scenario_dir / "precomputed"
         latents_ok = (precomputed_dir / "latents").exists() and any((precomputed_dir / "latents").iterdir())
         conditions_ok = (precomputed_dir / "conditions").exists() and any((precomputed_dir / "conditions").iterdir())
@@ -2122,7 +2059,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
         if skip_preprocess:
             _set(50, "3/4 · Preprocess übersprungen (Clips unverändert)", "Verwende vorhandene Latents…")
         else:
-            # Prompt geändert aber Clips gleich → nur T5 neu, VAE-Latents behalten
             text_only = force_preprocess and not selected_videos and latents_ok
             preprocess_cmd = [python, str(LOFI_PIPELINE / "scripts" / "preprocess_scenario.py"),
                               "--scenario", scenario_id]
@@ -2142,7 +2078,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
                 pre_buf.append(line.rstrip())
                 if len(pre_buf) > 5:
                     pre_buf.pop(0)
-                # 25 → 50 %, sättige nach 200 Zeilen
                 pct = min(50, 25 + int(25 * pre_lines / 200))
                 JOBS[job_id]["progress"] = pct
                 JOBS[job_id]["output"] = pre_buf[-1]
@@ -2153,13 +2088,10 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
                 JOBS[job_id]["returncode"] = 1
                 return
 
-        # ── Schritt 4: Training (gestreamt, Step-Parsing) ──────────────────
         _set(50, f"4/4 · LoRA-Training (0/{steps})", "Training startet…")
         round_n = _next_video_round(scenario_id)
         lora_config = str(scenario_cfg.get("lora_config") or "base_lora.yaml")
 
-        # reference_checkpoint in scenario.yaml: startet von diesem Checkpoint statt --fresh.
-        # Pfad relativ zum Szenario-Ordner. Nur dieses Szenario bekommt dieses Verhalten.
         ref_ckpt_rel = scenario_cfg.get("reference_checkpoint")
         ref_ckpt_arg: list[str]
         if ref_ckpt_rel:
@@ -2168,14 +2100,10 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
         else:
             ref_ckpt_arg = ["--fresh"]
 
-        # Patterns für Step-Erkennung aus Trainer-Output:
-        # {"loss": 0.23, "step": 10}  — wandb/HF-JSON-Log
-        # Step: 10/100               — tqdm-ähnlich
-        # 10%|████ | 10/100           — tqdm Fortschrittsbar
         _step_re = _re.compile(
-            r'"step"\s*:\s*(\d+)'          # JSON: "step": 42
-            r'|[Ss]tep[s]?\s*[:/]\s*(\d+)'  # "Step: 42" oder "Steps: 42"
-            r'|\|\s*(\d+)/' + str(steps)    # tqdm: | 42/100
+            r'"step"\s*:\s*(\d+)'
+            r'|[Ss]tep[s]?\s*[:/]\s*(\d+)'
+            r'|\|\s*(\d+)/' + str(steps)
         )
 
         train_proc = subprocess.Popen(
@@ -2185,7 +2113,7 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
              "--steps", str(steps),
              "--config", lora_config,
              *ref_ckpt_arg,
-             "--no-generate"],  # Sample-Generierung separat, nur finaler Checkpoint
+             "--no-generate"],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
         )
         train_buf: list[str] = []
@@ -2205,7 +2133,6 @@ def video_make_train_job(body: dict[str, Any]) -> dict[str, Any]:
 
         train_proc.wait()
         if train_proc.returncode == 0:
-            # Nur finalen Checkpoint generieren (nicht alle 40)
             _set(99, "Generiere Sample…", f"Step {steps} → Video…")
             subprocess.run(
                 [python, str(LOFI_GENERATE_SCRIPT.parent.parent / "lofi_pipeline" / "scripts" / "generate_samples.py"),
@@ -2240,12 +2167,10 @@ def video_make_generate_job(body: dict[str, Any]) -> dict[str, Any]:
 
     scenario_dir = LOFI_SCENARIOS_DIR / scenario_id
 
-    # Runde aus letztem Checkpoint ableiten
     ckpt = _find_latest_video_checkpoint(scenario_id)
     if not ckpt:
         raise ValueError(f"Kein Checkpoint fuer Szenario {scenario_id} gefunden")
 
-    # round_N aus dem Pfad lesen (…/rounds/round_02/checkpoints/…)
     round_n = 1
     for part in Path(ckpt).parts:
         if part.startswith("round_"):
@@ -2283,7 +2208,6 @@ def video_make_generate_job(body: dict[str, Any]) -> dict[str, Any]:
                 buf.pop(0)
             last = buf[-1]
             JOBS[job_id]["output"] = last
-            # Fortschritt aus Zeilen wie "Generating step X/Y" oder tqdm
             import re as _re
             m = _re.search(r'(\d+)\s*/\s*(\d+)', last)
             if m:
@@ -2297,7 +2221,6 @@ def video_make_generate_job(body: dict[str, Any]) -> dict[str, Any]:
         if proc.returncode == 0:
             JOBS[job_id]["progress"] = 100
             JOBS[job_id]["phase"] = "Fertig"
-            # Neuestes MP4 in samples/ als videoUrl eintragen
             samples_dir = scenario_dir / "rounds" / f"round_{round_n:02d}" / "samples"
             mp4s = sorted(samples_dir.glob("*.mp4")) if samples_dir.exists() else []
             if mp4s:
@@ -2327,7 +2250,6 @@ def video_make_gif(body: dict[str, Any]) -> dict[str, Any]:
     if not scenario_id:
         raise ValueError("scenario_id erforderlich")
 
-    # video_path hat Vorrang vor round+filename
     video_path = str(body.get("video_path") or "").strip()
     if video_path:
         mp4_path = LOFI_SCENARIOS_DIR / scenario_id / video_path
@@ -2336,7 +2258,6 @@ def video_make_gif(body: dict[str, Any]) -> dict[str, Any]:
         filename = str(body.get("filename") or "")
         if not filename:
             raise ValueError("video_path oder filename erforderlich")
-        # round_NN → rounds/round_NN/samples/ (echte Ordnerstruktur)
         if _re.match(r"^round_\d+$", round_name):
             mp4_path = LOFI_SCENARIOS_DIR / scenario_id / "rounds" / round_name / "samples" / filename
         else:
@@ -2363,7 +2284,7 @@ def video_make_gif(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-_clip_cache: dict = {}  # lazy-loaded CLIP model (openai/clip-vit-base-patch32)
+_clip_cache: dict = {}
 
 
 def _compute_clip_score(mp4_path: "Path", prompt: str) -> "float | None":
@@ -2402,7 +2323,7 @@ def _compute_clip_score(mp4_path: "Path", prompt: str) -> "float | None":
             return None
 
         inputs = processor(
-            text=[prompt[:77]],  # CLIP max 77 tokens
+            text=[prompt[:77]],
             images=frames_pil,
             return_tensors="pt",
             padding=True,
@@ -2439,7 +2360,6 @@ def video_feedback_history(params: dict) -> dict:
     """LOFI-QI-Verlauf für ein Szenario aus feedback_history.jsonl lesen."""
     import json as _json
     raw = params.get("scenario_id") or ""
-    # parse_qs liefert Listen; direkte Strings auch unterstützen
     scenario_id = str((raw[0] if isinstance(raw, list) else raw) or "").strip()
     if not scenario_id:
         return {"ok": True, "history": []}
@@ -2487,13 +2407,12 @@ def video_quantified_feedback(body: dict[str, Any]) -> dict[str, Any]:
     geringere Inter-Rater-Varianz als eine Gesamtnote. Jede Dimension mappt 1:1
     auf einen Trainingsparameter. Score < 3 → Parameter anpassen. Score >= 4 → unveraendert.
     """
-    import yaml  # type: ignore
+    import yaml
 
     scenario_id = str(body.get("scenario_id") or "")
     feedback = body.get("feedback") or {}
     dimensions = feedback.get("dimensions") or {}
     issues = list(feedback.get("issues") or [])
-    # free_text wird aktuell nur gespeichert, nicht ausgewertet
     _ = str(feedback.get("freeText") or "").strip()
 
     scenario_dir = LOFI_SCENARIOS_DIR / scenario_id
@@ -2509,7 +2428,6 @@ def video_quantified_feedback(body: dict[str, Any]) -> dict[str, Any]:
     adjustments: list[str] = []
     needs_training = False
 
-    # Dimensions → Parameter-Anpassungen
     dim_map = {
         "stil_treue": {
             "low_prompt": "flat anime illustration, hand-drawn 2D anime art, cel shading",
@@ -2575,7 +2493,6 @@ def video_quantified_feedback(body: dict[str, Any]) -> dict[str, Any]:
                 else:
                     guidance = new_guidance
 
-    # Problem-Chip-Korrekturen
     for issue_id in issues:
         corr = _VIDEO_CORRECTIONS.get(issue_id)
         if not corr:
@@ -2599,24 +2516,13 @@ def video_quantified_feedback(body: dict[str, Any]) -> dict[str, Any]:
     cfg["generate_inference_steps"] = infer_steps
     cfg["metric_targets"] = metric_targets
 
-    # ── LOFI-QI (Phase 04) ───────────────────────────────────────────────────
-    # Formel: LOFI-QI = Σ(w_i · s_i) / Σ(w_i)  für verfügbare Komponenten
-    #
-    # Komponenten und Gewichte (Designentscheidung, dokumentiert):
-    #   BARS       30%  – dimensionales Feedback (Smith & Kendall 1963, BARS)
-    #   Objektiv   30%  – technische Metriken (SSIM, Schärfe, Bewegung; evaluate_video.py)
-    #   CLIP       20%  – semantische Stiltreue (Radford et al. 2021, CLIP ViT-B/32)
-    #   Stern       5%  – holistische Gesamtbewertung (Likert 1–5)
-    #
-    # Nicht verfügbare Komponenten werden aus Zähler UND Nenner ausgeschlossen
-    # → Renormalisierung auf verfügbare Gewichte (Standard bei partiell fehlenden Daten).
     dim_keys = ["stil_treue", "bewegung", "schaerfe", "stimmung", "motiv_genauigkeit"]
     dim_vals = [float(dimensions.get(k) or 3) for k in dim_keys]
-    bars_score = (sum(dim_vals) / len(dim_vals) - 1) / 4  # Min-Max: [1,5] → [0,1]
+    bars_score = (sum(dim_vals) / len(dim_vals) - 1) / 4
 
-    overall_star_raw = float(feedback.get("overall") or 0)  # 0 = nicht bewertet
+    overall_star_raw = float(feedback.get("overall") or 0)
     has_star = overall_star_raw > 0
-    overall_star_norm = (overall_star_raw - 1) / 4 if has_star else 0.0  # [1,5] → [0,1]
+    overall_star_norm = (overall_star_raw - 1) / 4 if has_star else 0.0
 
     objective_score = _get_last_objective_score(scenario_id)
     clip_score = _get_last_clip_score(scenario_id)
@@ -2649,13 +2555,11 @@ def video_quantified_feedback(body: dict[str, Any]) -> dict[str, Any]:
         "adjustments_applied": adjustments,
     })
 
-    # Backup + speichern
     backup = scenario_path.with_suffix(".yaml.bak")
     backup.write_text(scenario_path.read_text(encoding="utf-8"), encoding="utf-8")
     with open(scenario_path, "w", encoding="utf-8") as fh:
         yaml.dump(cfg, fh, allow_unicode=True, default_flow_style=False, width=120)
 
-    # Direkt neue Generierung starten (letzten Checkpoint verwenden)
     ckpt = _find_latest_video_checkpoint(scenario_id)
     if ckpt:
         job = video_make_generate_job({"scenario_id": scenario_id, "steps": infer_steps})
@@ -2699,7 +2603,6 @@ def video_evaluate(body: dict[str, Any]) -> dict[str, Any]:
     metrics_json = mp4.with_suffix(".metrics.json")
     clip_json = mp4.with_suffix(".clip.json")
 
-    # Objektive Metriken: Cache nutzen wenn vorhanden und aktuell
     cached = False
     if metrics_json.exists() and metrics_json.stat().st_mtime >= mp4.stat().st_mtime:
         metrics = _json.loads(metrics_json.read_text(encoding="utf-8"))
@@ -2716,7 +2619,6 @@ def video_evaluate(body: dict[str, Any]) -> dict[str, Any]:
             return {"ok": False, "error": "evaluate_video.py hat keine Ausgabe erzeugt"}
         metrics = _json.loads(metrics_json.read_text(encoding="utf-8"))
 
-    # CLIP-Score: Cache nutzen oder neu berechnen
     clip_score: "float | None" = None
     if clip_json.exists() and clip_json.stat().st_mtime >= mp4.stat().st_mtime:
         try:
@@ -2724,7 +2626,6 @@ def video_evaluate(body: dict[str, Any]) -> dict[str, Any]:
         except Exception:
             pass
     else:
-        # Prompt aus scenario.yaml lesen
         scenario_yaml = LOFI_SCENARIOS_DIR / scenario_id / "scenario.yaml"
         prompt = ""
         if scenario_yaml.exists():
@@ -2782,7 +2683,7 @@ def _find_latest_video_checkpoint(scenario_id: str) -> Path | None:
 
 def video_scenarios_payload() -> list[dict[str, Any]]:
     """Alle Szenarien aus dem Lo-Fi-Pipeline-Verzeichnis listen."""
-    import yaml  # type: ignore
+    import yaml
 
     rows: list[dict[str, Any]] = []
     if not LOFI_SCENARIOS_DIR.exists():
@@ -2896,9 +2797,6 @@ def make_project_job(action: str, body: dict[str, Any]) -> dict[str, Any]:
 
     commands: list[list[str]]
     profile = profile_from_label(str(body.get("genre") or "chillhop_lofi"))
-    # Nur echt anzeigen, wenn die Aktion tatsaechlich ein Genre bekommen hat -
-    # sonst zeigt die Job-Liste faelschlich ein Genre fuer genre-unabhaengige
-    # Aktionen (Testaudios, Checkpoint freigeben, Training, ...).
     display_profile = profile if str(body.get("genre") or "").strip() else ""
     duration = 0
     if action == "top10":
@@ -2980,9 +2878,6 @@ def make_project_job(action: str, body: dict[str, Any]) -> dict[str, Any]:
     elif action == "lora_training":
         archive_lora_run()
         command = command_python(str(START), "--lora-training")
-        # Optionale Overrides fuers Training - werden von start.py an lora.py
-        # weitergereicht und ueberschreiben dort die Standardwerte (spaeter
-        # angegebene argparse-Flags gewinnen).
         if body.get("loraRank"):
             command.extend(["--lora-rank", str(int(body["loraRank"]))])
         if body.get("loraAlpha"):
@@ -2993,12 +2888,6 @@ def make_project_job(action: str, body: dict[str, Any]) -> dict[str, Any]:
             command.extend(["--max-steps", str(int(body["maxSteps"]))])
         commands = [command]
     elif action == "lora_training_weiter":
-        # Bewusst KEIN archive_lora_run(): baut auf dem bestehenden Checkpoint
-        # auf (--lora-weitere-500 nutzt intern --resume-from auto), statt neu
-        # zu starten. lora.py setzt fuer diese Fortsetzungsrunde automatisch
-        # eine hoehere Lernrate (1e-5 statt 5e-6) an, sofern nicht per
-        # learningRate-Override (z.B. Wiederaufnahme nach Absturz mit
-        # identischer Konfiguration wie zuvor) explizit anders gesetzt.
         command = command_python(str(START), "--lora-weitere-500")
         if body.get("learningRate"):
             command.extend(["--learning-rate", str(body["learningRate"])])
@@ -3103,9 +2992,6 @@ def make_project_job(action: str, body: dict[str, Any]) -> dict[str, Any]:
         result = delete_archive(path_arg)
         return start_command(kind=action, commands=[], prompt_profile=profile) | result
     elif action == "testaudios":
-        # Ein kurzes Testaudio pro echtem Projekt-Genre, statt der alten,
-        # vom Projekt unabhaengigen 8er-Prompt-Bank (siehe Nutzer-Feedback:
-        # ein Test soll die tatsaechlichen Genres abdecken, nicht Fremdstile).
         commands = []
         eingeplante_genres: list[str] = []
         genres = load_genres()
@@ -3159,13 +3045,7 @@ def make_project_job(action: str, body: dict[str, Any]) -> dict[str, Any]:
                 str(adapter_path),
                 "--review-adapter-erlauben",
                 "--genre-pruefung-aktiv",
-                # Live getestet (2026-08-14): Genre-Melodie-Conditioning senkte die
-                # Genre-Treue im Schnitt um 9.6 Punkte (Jazz -43.0) gegen die
-                # 625-Schritte-Baseline. Bewusst deaktiviert gelassen.
                 "--genre-melodie-conditioning-deaktivieren",
-                # Kein Einzel-Push pro Genre - stattdessen unten alle
-                # Genres zusammen in einem Ordner/Commit pushen (Nutzer
-                # will nicht 5 Dateien einzeln herunterladen muessen).
                 "--kein-github-push",
             )
             if max_generated_candidates:
@@ -3305,17 +3185,16 @@ class ApiHandler(BaseHTTPRequestHandler):
     server_version = "LofiLabAPI/1.0"
     protocol_version = "HTTP/1.1"
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
+    def log_message(self, format: str, *args: Any) -> None:
         """HTTP-Logs ruhig halten."""
 
         return
 
-    def do_OPTIONS(self) -> None:  # noqa: N802
+    def do_OPTIONS(self) -> None:
         self._send_empty(204)
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         parsed = urlparse(self.path)
-        # Media-Endpunkte brauchen kein Auth (Browser-img/video-Tags können keine Header senden)
         _public_media = (
             parsed.path.startswith("/api/video/media/")
             or parsed.path.startswith("/api/audio/")
@@ -3401,9 +3280,9 @@ class ApiHandler(BaseHTTPRequestHandler):
             try:
                 self._json({"error": f"{type(exc).__name__}: {exc}"}, 500)
             except Exception:
-                pass  # Verbindung bereits geschlossen (BrokenPipe) — ignorieren
+                pass
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         if not self._authorized():
             self._json({"error": "Nicht autorisiert"}, 401)
             return
@@ -3602,7 +3481,6 @@ class ApiHandler(BaseHTTPRequestHandler):
                     self.wfile.write(chunk)
 
     def _serve_video_media(self, path: str) -> None:
-        # /api/video/media/<scenario_id>/<subpath...>
         parts = path.split("/api/video/media/", 1)
         if len(parts) < 2 or not parts[1]:
             self._json({"error": "Ungültiger Pfad"}, 400)
@@ -3654,7 +3532,6 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     Video-Jobs erkennen wir am 'done'-Key (fehlt bei Audio-Jobs).
     """
     if "done" in job:
-        # Video-Job
         done = bool(job.get("done"))
         rc = job.get("returncode")
         failed = done and rc is not None and int(rc) != 0
@@ -3674,7 +3551,6 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
             "progress": float(job.get("progress") or 0) / 100.0,
             "startedAt": job.get("startedAt"),
             "finishedAt": job.get("finishedAt"),
-            # Felder die das Audio-Frontend erwartet (leer für Video-Jobs)
             "promptProfile": "video",
             "targetDurationMin": 0,
             "outputFormat": "mp4",
@@ -3684,7 +3560,6 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
             "error": job.get("output") if failed else None,
         }
 
-    # Audio-Job (Original-Logik)
     return {
         "jobId": job.get("jobId"),
         "isVideoJob": False,

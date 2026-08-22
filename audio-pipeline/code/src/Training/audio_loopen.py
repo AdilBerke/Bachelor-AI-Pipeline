@@ -157,8 +157,6 @@ def _tempo_und_beats(
     except Exception:
         return None, np.zeros(0, dtype=np.float64)
 
-    # Halb- oder Doppeltempo wird auf den Lofi-Zielbereich abgebildet. Wenn
-    # halbiert wird, wird auch das Beat-Raster entsprechend ausgeduennt.
     while tempo > ziel_bpm * 1.45 and len(beats) >= 4:
         tempo /= 2.0
         beats = beats[::2]
@@ -199,8 +197,6 @@ def _naht_metriken(
     high_jump = abs(before_high - after_high)
     correlation = _korrelation(_energieverlauf(before), _energieverlauf(after))
 
-    # Niedriger ist besser. Lautheit, Klangfarbe und rhythmischer
-    # Energieverlauf werden gemeinsam bewertet.
     score = (
         loudness_jump * 0.75
         + peak_jump * 0.25
@@ -307,8 +303,6 @@ def analysiere_loop(
         start_frame = max(0, min(len(audio) - 1, int(round(start_sec * sample_rate))))
         end_frame = max(start_frame + 1, min(len(audio), int(round(end_sec * sample_rate))))
         metrics = _naht_metriken(audio, start_frame, end_frame, fenster_frames, sample_rate)
-        # Bei aehnlicher Nahtqualitaet wird ein laengerer Ausschnitt bevorzugt,
-        # weil sich das musikalische Material dadurch seltener wiederholt.
         laengen_malus = max(0.0, max_loop_sec - (end_sec - start_sec)) * 0.08
         score = float(metrics["score"] + laengen_malus)
         if best is None or score < best[4]:
@@ -403,9 +397,6 @@ def _tempo_faktor_fuer_phase(
     if breite <= 0.0 or phase_index % 2 == 0:
         return 1.0
 
-    # Ungerade Phasen wechseln die Richtung. Dazwischen liegt immer eine
-    # neutrale Phase, wodurch kein abrupter Sprung von langsam zu schnell
-    # entstehen kann.
     ungerade_phase = (phase_index + 1) // 2
     richtung = erste_richtung if ungerade_phase % 2 == 1 else -erste_richtung
     max_abweichung = min(0.01, breite)
@@ -453,8 +444,6 @@ def baue_loop_block(
     target_frames = int(round(ziel_dauer_sec * sample_rate))
     crossfade_frames = int(round(analyse.crossfade_sec * sample_rate))
     crossfade_frames = min(crossfade_frames, len(segment) // 2)
-    # Ein zusaetzliches Segment reicht als Reserve, weil der Aufbau beendet
-    # wird, sobald die angeforderte Ziel-Dauer abgedeckt ist.
     reserve = int(math.ceil(len(segment) * (1.0 + max(0.0, tempo_variation_percent) / 100.0)))
     block = np.zeros(target_frames + reserve, dtype=np.float32)
     cursor = 0

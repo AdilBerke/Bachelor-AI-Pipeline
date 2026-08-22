@@ -587,9 +587,6 @@ def waehle_quellengetrennt(
         )
         split_sources["train"] = sorted(sources)
 
-    # Wenn eine Split-Quote knapp verfehlt wird, duerfen uebrige Clips aus
-    # bereits zugeordneten Quellen denselben Split vergroessern. Dadurch bleibt
-    # die Quellen-Trennung erhalten, aber wenige gute Clips bleiben nicht liegen.
     backfill_by_split = {"train": 0, "valid": 0, "test": 0}
     while sum(len(items) for items in result.values()) < target_count:
         progress = False

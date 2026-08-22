@@ -306,9 +306,6 @@ def append_with_crossfade(base: np.ndarray, clip: np.ndarray, crossfade_frames: 
     base_rms = rms(base[-fade_frames:])
     clip_rms = rms(adjusted_clip[:fade_frames])
     if base_rms > EPS and clip_rms > EPS:
-        # Der neue Block startet mit dem Pegel des alten Blocks. Innerhalb von
-        # bis zu 20 Sekunden kehrt er sanft zu seinem eigenen Normalpegel
-        # zurueck.
         start_gain = min(10.0 ** (3.0 / 20.0), max(10.0 ** (-3.0 / 20.0), base_rms / clip_rms))
         release_frames = min(len(adjusted_clip), max(fade_frames, SAMPLE_RATE * 20))
         gain_curve = np.linspace(start_gain, 1.0, release_frames, dtype=np.float32)
@@ -486,8 +483,6 @@ def plan_block_net_frames(
     min_frames = int(round(effective_min_sec * SAMPLE_RATE))
     variation = max(0.0, args.block_variation_sekunden)
     if variation <= 0.0:
-        # Bei festen Blocklaengen wird die Gesamtdauer gleichmaessig verteilt.
-        # Beispiel: 2 Stunden / 5 Minuten = exakt 24 gleich lange Bloecke.
         block_count = max(1, int(round(target_frames / max(1, min_frames))))
         basis = target_frames // block_count
         rest = target_frames % block_count
@@ -576,9 +571,6 @@ def main() -> int:
     loop_analyses: Dict[Path, Dict[str, Any]] = {}
 
     for block_index, net_block_frames in enumerate(planned_net_blocks):
-        # Ab dem zweiten Block wird ein Teil per Crossfade mit dem vorherigen
-        # Block ueberlappt. Deshalb braucht der neue Block intern etwas mehr
-        # Audiomaterial, damit die hoerbare Netto-Dauer trotzdem stimmt.
         audio_block_frames = net_block_frames if len(built) == 0 else net_block_frames + crossfade_frames
         selected, reset_count = choose_next_clip(
             pools=pools,

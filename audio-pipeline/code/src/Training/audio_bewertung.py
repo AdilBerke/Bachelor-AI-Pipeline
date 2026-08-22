@@ -556,7 +556,6 @@ def lade_genrestandard(genre: Any, referenz_root: Path, pro_genre: int = 20) -> 
                 profile_path = fallback_path
                 break
     if not _profil_gueltig(profile_path):
-        # Fallback, damit die Audioauswertung nie komplett ausfaellt.
         return {
             "genre_key": genre_key,
             "genre": genre_label(genre_key),
