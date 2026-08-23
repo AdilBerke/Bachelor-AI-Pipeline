@@ -116,21 +116,21 @@ denselben Ordner gelegt werden.
 **4f. Trainiertes Lo-Fi-LoRA (das eigentliche Ergebnis, nicht nur die Pipeline):** Die Schritte
 1–4e bauen nur die **Pipeline** nach — ein frisch heruntergeladenes MusicGen-Basismodell ohne
 LoRA generiert noch keine Lo-Fi-Musik im trainierten Stil. Dieses Repository enthält aus
-Größen- und Lizenzgründen **keinen** trainierten Adapter, nur den Code zum Trainieren
+Größengründen **keinen** trainierten Adapter im Git-Verlauf, nur den Code zum Trainieren
 (Schritt 8). Der aktuell freigegebene, echt genutzte Adapter (Step 625, 109 MB, trainiert auf
 5000 genrebalancierten Clips — genau der Stand, mit dem die 5 Kontroll-Audios auf der Website
-entstanden sind) ist separat auf Hugging Face veröffentlicht:
+entstanden sind) liegt als GitHub-Release-Anhang bereit (öffentlich, kein Login nötig):
 
-[huggingface.co/AdilBerke/lofi-musicgen-lora](https://huggingface.co/AdilBerke/lofi-musicgen-lora)
+[github.com/AdilBerke/Bachelor-AI-Pipeline/releases/tag/lora-adapter-v1](https://github.com/AdilBerke/Bachelor-AI-Pipeline/releases/tag/lora-adapter-v1)
 
-> **Live geprüft, Stand 2026-08-23:** Diese Seite antwortet aktuell mit HTTP 401 (privat/nicht
-> öffentlich abrufbar). Für einen echten Nachbau durch Dritte muss die Sichtbarkeit im
-> Hugging-Face-Repo zuerst auf "Public" gestellt werden — sonst schlägt der Download unten ohne
-> eigenes Hugging-Face-Login mit Zugriff auf das Repo fehl.
+> **Live geprüft, Stand 2026-08-23:** Download funktioniert öffentlich (HTTP 200), kein
+> Hugging-Face-Konto nötig — der frühere Hugging-Face-Verweis war fehlerhaft dokumentiert
+> (das Konto existierte nie).
 
 ```bash
-.venv/bin/huggingface-cli download AdilBerke/lofi-musicgen-lora lora_adapter.pt \
-  --local-dir training/musicgen/lora_training/checkpoints/step_000625/
+mkdir -p training/musicgen/lora_training/checkpoints/step_000625/
+curl -L -o training/musicgen/lora_training/checkpoints/step_000625/lora_adapter.pt \
+  https://github.com/AdilBerke/Bachelor-AI-Pipeline/releases/download/lora-adapter-v1/lora_adapter.pt
 
 .venv/bin/python code/start.py --lora-freigeben \
   --checkpoint training/musicgen/lora_training/checkpoints/step_000625/lora_adapter.pt
@@ -140,7 +140,7 @@ Der zweite Befehl setzt den Symlink `training/musicgen/lora_training/adapter.pt`
 Generierung tatsächlich verwendet. Mit `.venv/bin/python code/start.py --status` prüfen — sollte
 "LoRA Adapter: bereit (Step 625, lora)" zeigen.
 
-**Alternative ohne Hugging Face:** Die Datei
+**Alternative ohne Download:** Die Datei
 `training/musicgen/lora_training/checkpoints/step_000625/lora_adapter.pt` (109 MB) einfach
 direkt kopieren (USB-Stick, Cloud-Speicher o.ä.) und an derselben Stelle ablegen, dann nur den
 zweiten Befehl oben ausführen. Ohne einen der beiden Wege liefert die Pipeline erst nach einem

@@ -132,22 +132,22 @@ unter `video-pipeline/lofi_pipeline/models/RealESRGAN_x4plus_anime_6B.pth` abgel
 
 **4f. Trainiertes Lo-Fi-LoRA (optional, um ohne eigenes Training sofort generieren zu können):**
 
-Dieses Repository enthält aus Größen- und Lizenzgründen **keinen** trainierten LoRA-Adapter, nur den
+Dieses Repository enthält aus Größengründen **keinen** trainierten LoRA-Adapter im Git-Verlauf, nur den
 Code zum Trainieren (Schritt 8). Der aktuell freigegebene, menschlich bewertete Adapter (Step 625,
-109 MB, trainiert auf 5.000 genrebalancierten Clips) ist separat auf dem Hugging Face Hub veröffentlicht:
+109 MB, trainiert auf 5.000 genrebalancierten Clips, SHA256
+`2e7327592d91bc18bb4ebc02e69c7c0b2373f1ba3658d0ac64aea0f54efc26c6`) liegt als GitHub-Release-Anhang
+bereit:
 
-[huggingface.co/AdilBerke/lofi-musicgen-lora](https://huggingface.co/AdilBerke/lofi-musicgen-lora)
-(Modellkarte mit vollständiger Trainingskonfiguration und SHA256-Prüfsumme)
+[github.com/AdilBerke/Bachelor-AI-Pipeline/releases/tag/lora-adapter-v1](https://github.com/AdilBerke/Bachelor-AI-Pipeline/releases/tag/lora-adapter-v1)
 
-> **Live geprüft, Stand 2026-08-23:** Diese Seite antwortet aktuell mit HTTP 401 (privat/nicht
-> öffentlich abrufbar). Für einen echten Nachbau durch Dritte muss die Sichtbarkeit im
-> Hugging-Face-Repo zuerst auf "Public" gestellt werden — sonst schlägt der Download unten ohne
-> eigenes Hugging-Face-Login mit Zugriff auf das Repo fehl. Alternative ohne Hugging Face: die
-> 109-MB-Datei manuell kopieren (USB-Stick/Cloud) an denselben Zielpfad.
+> **Live geprüft, Stand 2026-08-23:** Download funktioniert öffentlich (HTTP 200), kein Login nötig —
+> der frühere Hugging-Face-Verweis in dieser Anleitung war fehlerhaft dokumentiert (das Hugging-Face-
+> Konto existierte nie, HTTP 401 kam von einem nicht existenten User).
 
 ```bash
-audio-pipeline/.venv/bin/huggingface-cli download AdilBerke/lofi-musicgen-lora lora_adapter.pt \
-  --local-dir audio-pipeline/training/musicgen/lora_training/checkpoints/step_000625/
+mkdir -p audio-pipeline/training/musicgen/lora_training/checkpoints/step_000625/
+curl -L -o audio-pipeline/training/musicgen/lora_training/checkpoints/step_000625/lora_adapter.pt \
+  https://github.com/AdilBerke/Bachelor-AI-Pipeline/releases/download/lora-adapter-v1/lora_adapter.pt
 
 cd audio-pipeline
 .venv/bin/python code/start.py --lora-freigeben \
@@ -157,6 +157,8 @@ cd audio-pipeline
 Danach ist der heruntergeladene Adapter als aktiver, freigegebener Stand registriert und direkt für
 Longform-Generierung (Schritt 8) nutzbar — ohne eigenen Trainingslauf. Ohne diesen Schritt liefert die
 Pipeline erst nach einem vollständigen, selbst durchgeführten LoRA-Training (Schritt 8) Ergebnisse.
+Alternative ohne Download: die 109-MB-Datei manuell kopieren (USB-Stick/Cloud) an denselben Zielpfad,
+dann nur den zweiten Befehl oben ausführen.
 
 ## 5. Frontend
 
