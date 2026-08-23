@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   Download,
+  DownloadCloud,
   FileAudio,
   Link as LinkIcon,
   ListChecks,
@@ -313,36 +314,76 @@ function Top10ChecklistPanel({
 }: {
   onPickMissing: (url: string, genreKey: string, status: string, grund: string | null) => void;
 }) {
+  const queryClient = useQueryClient();
   const status = useQuery({ queryKey: ["top10-status"], queryFn: api.top10Status });
   const genres = status.data ?? [];
+  const offenCount = genres.reduce(
+    (sum, g) => sum + g.entries.filter((entry) => entry.status === "offen").length,
+    0,
+  );
+
+  const importAllMutation = useMutation({
+    mutationFn: () => api.runProjectAction("import_pending", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
 
   return (
     <section className="mt-8 rounded-2xl border hairline bg-surface/40 p-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <ListChecks className="h-4 w-4 text-warm" />
-          <h2 className="text-base font-semibold text-foreground">Top10 je Genre</h2>
+          <h2 className="text-base font-semibold text-foreground">Top5 je Genre</h2>
         </div>
-        <button
-          onClick={() => status.refetch()}
-          className="mono inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Aktualisieren
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => importAllMutation.mutate()}
+            disabled={importAllMutation.isPending || offenCount === 0}
+            className="mono inline-flex items-center gap-1.5 rounded-md border border-warm/40 bg-warm/10 px-2.5 py-1.5 text-[10px] uppercase tracking-widest text-warm transition hover:bg-warm/20 disabled:opacity-50"
+          >
+            <DownloadCloud className="h-3.5 w-3.5" />
+            {importAllMutation.isPending
+              ? "Startet ..."
+              : `Alle offenen Videos importieren (${offenCount})`}
+          </button>
+          <button
+            onClick={() => status.refetch()}
+            className="mono inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Aktualisieren
+          </button>
+        </div>
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        Nur diese 10 Videos je Genre gehören in den Datensatz. Grün = bereits geladen. Gelb = vom Crawler
+        Nur diese 5 Videos je Genre gehören in den Datensatz. Grün = bereits geladen. Gelb = vom Crawler
         gefunden, aber automatisiert nicht ladbar (z.B. Lizenz/Zugriff) — bitte manuell importieren. Grau = noch
         offen.
       </p>
 
+      {importAllMutation.isPending && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Lädt alle offenen Videos nacheinander im Hintergrund herunter — einzelne Fehler (z.B. Lizenz) werden
+          übersprungen, der Rest läuft weiter. Fortschritt unter{" "}
+          <Link to="/studio/jobs" className="text-warm hover:underline">
+            Läufe
+          </Link>{" "}
+          sichtbar.
+        </p>
+      )}
+      {importAllMutation.error && (
+        <div className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">
+          {(importAllMutation.error as Error).message}
+        </div>
+      )}
+
       {status.isLoading ? (
-        <p className="mt-4 text-xs text-muted-foreground">Lade Top10-Status...</p>
+        <p className="mt-4 text-xs text-muted-foreground">Lade Top5-Status...</p>
       ) : genres.length === 0 ? (
         <p className="mt-4 text-xs text-muted-foreground">
-          Noch keine Top10-Suche gelaufen. Ueber "Steuerung" eine Top10-Suche starten.
+          Noch keine Top5-Suche gelaufen. Ueber "Steuerung" eine Top5-Suche starten.
         </p>
       ) : (
         <div className="mt-5 space-y-6">
@@ -353,9 +394,9 @@ function Top10ChecklistPanel({
               </div>
               {g.entries.length === 0 ? (
                 <div className="rounded-lg border border-dashed hairline bg-background/20 px-3 py-3 text-xs text-muted-foreground">
-                  Keine verlässliche Top10-Suche vorhanden (fehlende oder unvollständige Abrufzahlen-Daten).{" "}
+                  Keine verlässliche Top5-Suche vorhanden (fehlende oder unvollständige Abrufzahlen-Daten).{" "}
                   <Link to="/studio/model" className="text-warm hover:underline">
-                    Top10-Suche in der Steuerung starten
+                    Top5-Suche in der Steuerung starten
                   </Link>
                   .
                 </div>
@@ -535,7 +576,7 @@ function SourcesPanel() {
           </button>
           {pendingPrune ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Nicht-Top10 wirklich entfernen?</span>
+              <span className="text-xs text-muted-foreground">Nicht-Top5 wirklich entfernen?</span>
               <button
                 onClick={() => pruneMutation.mutate()}
                 disabled={pruneMutation.isPending}
@@ -556,7 +597,7 @@ function SourcesPanel() {
               className="mono inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-[10px] uppercase tracking-widest text-destructive-foreground transition hover:bg-destructive/20"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Nicht-Top10 bereinigen
+              Nicht-Top5 bereinigen
             </button>
           )}
         </div>
@@ -564,7 +605,7 @@ function SourcesPanel() {
 
       <p className="mt-2 text-xs text-muted-foreground">
         Schlechte Quellen manuell entfernen. Löscht die Rohdatei, den Metadaten-Eintrag und bereits daraus
-        gebaute Trainingsclips. Manuell importierte/hochgeladene Quellen sind von der Top10-Bereinigung
+        gebaute Trainingsclips. Manuell importierte/hochgeladene Quellen sind von der Top5-Bereinigung
         ausgenommen.
       </p>
 
@@ -575,7 +616,7 @@ function SourcesPanel() {
       )}
       {pruneMutation.isSuccess && !pendingPrune && !pruneMutation.data.aborted && (
         <div className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-          Bereinigt: {pruneMutation.data.removedCount} entfernt, {pruneMutation.data.keptTop10} Top10-Treffer,{" "}
+          Bereinigt: {pruneMutation.data.removedCount} entfernt, {pruneMutation.data.keptTop10} Top5-Treffer,{" "}
           {pruneMutation.data.keptManual} manuelle Quellen behalten.
         </div>
       )}

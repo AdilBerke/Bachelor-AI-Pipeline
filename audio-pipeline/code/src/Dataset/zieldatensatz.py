@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Erstellt ein genrebalanciertes LoRA-Clip-Zieldataset fuer MusicGen-LoRA.
-
-Die Datei baut keine neuen WAVs und startet kein Training. Sie sammelt nur
-bereits vorhandene, saubere 30s-Clips aus direkten MP3/Youtube-Imports und
-schreibt daraus ein Manifest-Dataset. Alte 60s-Zwischenpipeline-Clips werden
-hart blockiert.
-"""
 
 from __future__ import annotations
 
@@ -37,12 +30,10 @@ SPLITS = ("train", "valid", "test")
 
 
 def jetzt_utc() -> str:
-    """UTC-Zeitstempel fuer Reports."""
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def rel(path: Path) -> str:
-    """Schreibt Projektpfade kurz und lesbar."""
     try:
         return str(path.resolve().relative_to(PROJEKTWURZEL))
     except Exception:
@@ -50,7 +41,6 @@ def rel(path: Path) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    """Argumente fuer das LoRA-Zieldataset."""
     parser = argparse.ArgumentParser(description="Plant/erstellt ein LoRA-Clip-Dataset mit gleichmaessigen Lofi-Genres.")
     parser.add_argument("--quelle", default=str(STANDARD_QUELLE))
     parser.add_argument("--ziel", default=str(STANDARD_ZIEL))
@@ -65,7 +55,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def lese_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Liest JSONL defensiv."""
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as handle:
         for line_number, raw_line in enumerate(handle, start=1):
@@ -82,7 +71,6 @@ def lese_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    """Schreibt ein Manifest."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
@@ -90,7 +78,6 @@ def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
-    """Schreibt einen CSV-Report."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -99,7 +86,6 @@ def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) 
 
 
 def manifest_roots(root: Path) -> list[Path]:
-    """Findet ein einzelnes Dataset oder mehrere Import-Unterdatasets."""
     root = root.expanduser().resolve()
     if all((root / split / "data.jsonl").exists() for split in SPLITS):
         return [root]
@@ -108,19 +94,16 @@ def manifest_roots(root: Path) -> list[Path]:
 
 
 def genre_key(row: dict[str, Any]) -> str:
-    """Kompatibler Kurzname fuer die gemeinsame Genre-Regel."""
 
     return erkenne_genre(row)
 
 
 def source_key(row: dict[str, Any]) -> str:
-    """Kompatibler Kurzname fuer den gemeinsamen Quellschluessel."""
 
     return quellen_schluessel(row, PROJEKTWURZEL)
 
 
 def gesperrte_quellen() -> set[str]:
-    """Liest Quellen, die fuer den LoRA-Zieldatensatz gesperrt sind."""
 
     ids: set[str] = set()
     if not QUELLEN_SPERRLISTE_CSV.exists():
@@ -138,7 +121,6 @@ def gesperrte_quellen() -> set[str]:
 
 
 def quelle_gesperrt(row: dict[str, Any], gesperrt: set[str]) -> bool:
-    """Prueft Quelle, Video-ID und URL gegen die Sperrliste."""
 
     if not gesperrt:
         return False
@@ -153,7 +135,6 @@ def quelle_gesperrt(row: dict[str, Any], gesperrt: set[str]) -> bool:
 
 
 def sekundenwert(value: Any) -> str:
-    """Normalisiert Zeitangaben, damit 30 und 30.0 denselben Clip bezeichnen."""
     if value is None or value == "":
         return ""
     try:
@@ -163,15 +144,15 @@ def sekundenwert(value: Any) -> str:
 
 
 def clip_key(row: dict[str, Any]) -> str:
-    """Eindeutiger Clip-Schluessel aus Quelle und Zeitfenster."""
     source = source_key(row)
     start = row.get("start_time_sec", row.get("clip_start_sec", ""))
     end = row.get("end_time_sec", row.get("clip_end_sec", ""))
+
+
     return f"{source}|{sekundenwert(start)}|{sekundenwert(end)}"
 
 
 def ist_60s_abgeleitet(row: dict[str, Any]) -> bool:
-    """Blockiert die alte 60s-Zwischenpipeline."""
     path = str(row.get("path") or "")
     return bool(
         row.get("source_60s_path")
@@ -183,7 +164,6 @@ def ist_60s_abgeleitet(row: dict[str, Any]) -> bool:
 
 
 def repariere_audio_pfad(row: dict[str, Any], dataset_root: Path) -> tuple[dict[str, Any] | None, str]:
-    """Repariert alte Manifest-Pfade, wenn die WAV im aktuellen Importordner liegt."""
     raw_path = str(row.get("path") or "").strip()
     if not raw_path:
         return None, "pfad_fehlt"
@@ -201,7 +181,6 @@ def repariere_audio_pfad(row: dict[str, Any], dataset_root: Path) -> tuple[dict[
 
 
 def lade_rows(source_roots: list[Path], min_quality_score: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Laedt und filtert alle Kandidaten aus den Import-Datasets."""
     rows: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
     seen_paths: set[str] = set()
@@ -257,7 +236,6 @@ def lade_rows(source_roots: list[Path], min_quality_score: float) -> tuple[list[
 
 
 def main() -> int:
-    """CLI-Einstieg."""
     args = parse_args()
     source_root = Path(args.quelle).expanduser().resolve()
     target_root = Path(args.ziel).expanduser().resolve()

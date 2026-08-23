@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""Veroeffentlicht fertige Audios sicher auf GitHub.
-
-Die aktuelle Arbeitskopie darf viele offene Aenderungen enthalten. Deshalb
-erstellt dieses Werkzeug einen isolierten, temporaeren Git-Worktree auf Basis
-von ``origin/main``. In diesem Worktree wird ausschliesslich die angegebene
-Audio oder ein angegebener Audio-Ordner staged, committed und gepusht. Grosse
-Audios werden ueber Git LFS verwaltet, damit die normale GitHub-Dateigrenze
-nicht ueberschritten wird.
-"""
 
 from __future__ import annotations
 
@@ -33,7 +24,6 @@ def git_befehl(
     arbeitsordner: Path,
     pruefen: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    """Fuehrt Git ohne interaktive Passwortabfrage aus."""
 
     umgebung = os.environ.copy()
     umgebung["GIT_TERMINAL_PROMPT"] = "0"
@@ -48,7 +38,6 @@ def git_befehl(
 
 
 def projektpfad(audio_path: Path) -> Path:
-    """Prueft, dass die zu pushende Datei innerhalb des Projekts liegt."""
 
     path = audio_path.expanduser().resolve()
     if not path.is_file():
@@ -62,7 +51,6 @@ def projektpfad(audio_path: Path) -> Path:
 
 
 def audio_dateien_aus_eingabe(path: str | Path) -> list[Path]:
-    """Liest eine einzelne Audiodatei oder alle Audios aus einem Ordner."""
 
     eingabe = Path(path).expanduser().resolve()
     if eingabe.is_file():
@@ -83,7 +71,6 @@ def audio_dateien_aus_eingabe(path: str | Path) -> list[Path]:
 
 
 def github_basis_url(remote_url: str) -> str:
-    """Wandelt eine HTTPS- oder SSH-Remote in eine Browser-URL um."""
 
     value = remote_url.strip()
     if value.endswith(".git"):
@@ -96,7 +83,6 @@ def github_basis_url(remote_url: str) -> str:
 
 
 def datei_verknuepfen_oder_kopieren(source: Path, target: Path) -> None:
-    """Verwendet nach Moeglichkeit einen platzsparenden Hardlink."""
 
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -106,7 +92,6 @@ def datei_verknuepfen_oder_kopieren(source: Path, target: Path) -> None:
 
 
 def lfs_fuer_endung_aktivieren(worktree: Path, endung: str) -> None:
-    """Aktiviert Git LFS fuer grosse Audios dieser Endung."""
 
     git_befehl(["lfs", "version"], arbeitsordner=worktree)
     git_befehl(["lfs", "install", "--local"], arbeitsordner=worktree)
@@ -123,7 +108,6 @@ def veroeffentliche_audio(
     nur_plan: bool = False,
     versuche: int = 3,
 ) -> dict[str, Any]:
-    """Committed und pusht eine einzelne Audio nach GitHub."""
 
     return veroeffentliche_audios(
         [Path(audio).expanduser().resolve()],
@@ -144,7 +128,6 @@ def veroeffentliche_audios(
     nur_plan: bool = False,
     versuche: int = 3,
 ) -> dict[str, Any]:
-    """Committed und pusht mehrere Audiodateien in einem isolierten Commit."""
 
     audio_paths = [Path(item).expanduser().resolve() for item in audios]
     if not audio_paths:

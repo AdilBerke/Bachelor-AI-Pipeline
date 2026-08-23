@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-"""Bewertung und Auswertung fuer MusicGen-Audios.
-
-Diese Datei buendelt zwei aktive Hilfsfunktionen:
-- technische Bewertung einer erzeugten MP3/WAV-Datei
-- Analyse der menschlichen Bewertungs-CSVs
-
-Die technische Bewertung ersetzt keine menschliche Musikbewertung. Sie filtert
-nur typische technische Fehler wie Stille, Clipping, Signaltoene, dominante
-Bassbereiche oder harte Lautheitswechsel.
-"""
 
 from __future__ import annotations
 
@@ -37,6 +27,9 @@ SCORE_KATEGORIEN = [
     "Genre-Treue",
     "Übergangsqualität",
     "Referenzähnlichkeit",
+    "Stille-/Aktivitätsanteil",
+    "Rhythmische Stabilität",
+    "Klangfarbenbalance",
 ]
 
 GENRE_STANDARD_LABELS = {
@@ -52,7 +45,6 @@ GENRE_STANDARD_LABELS = {
 
 
 def projektwurzel() -> Path:
-    """Findet die Projektwurzel ueber die vier Hauptordner."""
 
     for parent in Path(__file__).resolve().parents:
         if (parent / "code").exists() and (parent / "training").exists():
@@ -64,7 +56,6 @@ PROJECT_ROOT = projektwurzel()
 
 
 def rel(path: Path) -> str:
-    """Gibt Pfade in Reports moeglichst relativ zur Projektwurzel aus."""
 
     try:
         return str(path.resolve().relative_to(PROJECT_ROOT))
@@ -73,19 +64,16 @@ def rel(path: Path) -> str:
 
 
 def db(value: float) -> float:
-    """Wandelt lineare Amplitude in Dezibel um."""
 
     return 20.0 * math.log10(max(float(value), EPS))
 
 
 def rms(audio: np.ndarray) -> float:
-    """Berechnet die mittlere Energie eines Audiosignals."""
 
     return float(np.sqrt(np.mean(np.square(audio)))) if len(audio) else 0.0
 
 
 def decode_audio(path: Path) -> np.ndarray:
-    """Dekodiert MP3/WAV mit ffmpeg als mono 32-kHz-Float-Audio."""
 
     result = subprocess.run(
         [
@@ -112,7 +100,6 @@ def decode_audio(path: Path) -> np.ndarray:
 
 
 def seconds_label(seconds: float) -> str:
-    """Formatiert Sekunden als mm:ss oder hh:mm:ss."""
 
     total = int(round(seconds))
     hours, rest = divmod(total, 3600)
@@ -123,7 +110,6 @@ def seconds_label(seconds: float) -> str:
 
 
 def spectral_ratios(audio: np.ndarray) -> Dict[str, float]:
-    """Schaetzt Bass-, Snare-, Hoehen- und Signalton-Anteile."""
 
     if len(audio) < SAMPLE_RATE:
         return {"bass_ratio": 0.0, "snare_ratio": 0.0, "high_ratio": 0.0, "tone_ratio": 0.0}
@@ -141,7 +127,6 @@ def spectral_ratios(audio: np.ndarray) -> Dict[str, float]:
 
 
 def normalisiere_genre(value: Any) -> str:
-    """Macht freie Genre-Namen fuer gespeicherte Profile vergleichbar."""
 
     text = str(value or "").lower().strip()
     text = text.replace("lo-fi", "lofi").replace("-", " ").replace("_", " ")
@@ -184,27 +169,23 @@ def normalisiere_genre(value: Any) -> str:
 
 
 def genre_label(value: Any) -> str:
-    """Gibt einen lesbaren Genrenamen fuer Reports zurueck."""
 
     key = normalisiere_genre(value)
     return GENRE_STANDARD_LABELS.get(key, key.replace("_", " ").title())
 
 
 def clamp_score(value: float) -> float:
-    """Begrenzt Scores auf die Skala 0 bis 100."""
 
     return round(max(0.0, min(100.0, float(value))), 1)
 
 
 def median_float(values: List[float]) -> float:
-    """Robuster Median fuer Listen mit Messwerten."""
 
     clean = [float(value) for value in values if value is not None and not math.isnan(float(value))]
     return float(np.median(clean)) if clean else 0.0
 
 
 def schaetze_bpm(audio: np.ndarray) -> float:
-    """Schaetzt das Tempo grob ueber Energie-Impulse."""
 
     if len(audio) < SAMPLE_RATE * 8:
         return 0.0
@@ -236,7 +217,6 @@ def schaetze_bpm(audio: np.ndarray) -> float:
 
 
 def chroma_vector(audio: np.ndarray) -> np.ndarray:
-    """Schaetzt eine einfache chromatische Verteilung fuer Harmonie-Spruenge."""
 
     if len(audio) < SAMPLE_RATE:
         return np.zeros(12, dtype=np.float32)
@@ -256,7 +236,6 @@ def chroma_vector(audio: np.ndarray) -> np.ndarray:
 
 
 def _spectral_centroid(audio: np.ndarray) -> float:
-    """Berechnet eine grobe spektrale Helligkeit."""
 
     if len(audio) < SAMPLE_RATE:
         return 0.0
@@ -268,7 +247,6 @@ def _spectral_centroid(audio: np.ndarray) -> float:
 
 
 def _section_bpm_values(audio: np.ndarray, section_seconds: float = 30.0) -> List[float]:
-    """BPM-Liste fuer laengere Audios, ohne Rohkurve im Hauptreport zu zeigen."""
 
     frames = int(round(section_seconds * SAMPLE_RATE))
     values: List[float] = []
@@ -283,8 +261,27 @@ def _section_bpm_values(audio: np.ndarray, section_seconds: float = 30.0) -> Lis
     return values
 
 
-def score_kennwerte(audio: np.ndarray) -> Dict[str, float]:
-    """Berechnet interne Kennwerte fuer die fuenf Score-Kategorien."""
+def _seam_metrics_an_grenze(audio: np.ndarray, grenze_frame: int, fenster_frames: int) -> Dict[str, float]:
+
+    vor = audio[max(0, grenze_frame - fenster_frames):grenze_frame]
+    nach = audio[grenze_frame:grenze_frame + fenster_frames]
+    if len(vor) == 0 or len(nach) == 0:
+        return {"loudness": 0.0, "spectral": 0.0, "click": 0.0, "harmonic": 0.0}
+    vor_spec = spectral_ratios(vor)
+    nach_spec = spectral_ratios(nach)
+    loudness = abs(db(rms(vor)) - db(rms(nach)))
+    spectral = (
+        abs(vor_spec["bass_ratio"] - nach_spec["bass_ratio"])
+        + abs(vor_spec["snare_ratio"] - nach_spec["snare_ratio"])
+        + abs(vor_spec["high_ratio"] - nach_spec["high_ratio"])
+        + abs(vor_spec["tone_ratio"] - nach_spec["tone_ratio"])
+    )
+    click = float(abs(float(vor[-1]) - float(nach[0])))
+    harmonic = float(np.linalg.norm(chroma_vector(vor) - chroma_vector(nach)))
+    return {"loudness": loudness, "spectral": spectral, "click": click, "harmonic": harmonic}
+
+
+def score_kennwerte(audio: np.ndarray, seam_boundaries_sec: Optional[List[float]] = None) -> Dict[str, float]:
 
     duration = len(audio) / float(SAMPLE_RATE)
     peak = float(np.max(np.abs(audio))) if len(audio) else 0.0
@@ -301,23 +298,26 @@ def score_kennwerte(audio: np.ndarray) -> Dict[str, float]:
     bpm = float(np.median(bpm_values)) if bpm_values else schaetze_bpm(audio)
     bpm_std = float(np.std(bpm_values)) if len(bpm_values) >= 2 else 0.0
 
-    seam_seconds = min(8.0, max(2.0, duration * 0.1)) if duration > 0 else 2.0
+    seam_seconds = min(3.0, max(1.0, duration * 0.05)) if duration > 0 else 1.0
     seam_frames = int(round(seam_seconds * SAMPLE_RATE))
-    start_audio = audio[:seam_frames]
-    end_audio = audio[-seam_frames:] if len(audio) >= seam_frames else audio
-    start_spec = spectral_ratios(start_audio)
-    end_spec = spectral_ratios(end_audio)
-    seam_loudness_jump_db = abs(db(rms(start_audio)) - db(rms(end_audio))) if len(start_audio) and len(end_audio) else 0.0
-    seam_spectral_jump = (
-        abs(start_spec["bass_ratio"] - end_spec["bass_ratio"])
-        + abs(start_spec["snare_ratio"] - end_spec["snare_ratio"])
-        + abs(start_spec["high_ratio"] - end_spec["high_ratio"])
-        + abs(start_spec["tone_ratio"] - end_spec["tone_ratio"])
-    )
-    seam_click = float(abs(float(start_audio[0]) - float(end_audio[-1]))) if len(start_audio) and len(end_audio) else 0.0
-    start_chroma = chroma_vector(start_audio)
-    end_chroma = chroma_vector(end_audio)
-    harmonic_jump = float(np.linalg.norm(start_chroma - end_chroma))
+    grenzen = [
+        int(round(sekunde * SAMPLE_RATE))
+        for sekunde in (seam_boundaries_sec or [])
+        if 0 < sekunde < duration
+    ]
+    if grenzen:
+        einzelmessungen = [_seam_metrics_an_grenze(audio, grenze, seam_frames) for grenze in grenzen]
+        seam_loudness_jump_db = float(np.mean([m["loudness"] for m in einzelmessungen]))
+        seam_spectral_jump = float(np.mean([m["spectral"] for m in einzelmessungen]))
+        seam_click = float(np.mean([m["click"] for m in einzelmessungen]))
+        harmonic_jump = float(np.mean([m["harmonic"] for m in einzelmessungen]))
+    else:
+
+
+        seam_loudness_jump_db = 0.0
+        seam_spectral_jump = 0.0
+        seam_click = 0.0
+        harmonic_jump = 0.0
 
     return {
         "duration_sec": round(duration, 3),
@@ -344,7 +344,6 @@ def score_kennwerte(audio: np.ndarray) -> Dict[str, float]:
 
 
 def _audio_pfad(row: Dict[str, Any]) -> Path:
-    """Loest Pfade aus Dataset-Manifesten auf."""
 
     path = Path(str(row.get("path") or "")).expanduser()
     if not path.is_absolute():
@@ -353,7 +352,6 @@ def _audio_pfad(row: Dict[str, Any]) -> Path:
 
 
 def _manifest_rows(referenz_root: Path) -> List[Dict[str, Any]]:
-    """Liest alle Split-Manifeste eines Referenzdatasets."""
 
     rows: List[Dict[str, Any]] = []
     for split in ("train", "valid", "test"):
@@ -373,7 +371,6 @@ def _manifest_rows(referenz_root: Path) -> List[Dict[str, Any]]:
 
 
 def _score_technisch(metrics: Dict[str, float]) -> float:
-    """Technische Qualitaet ohne harte Strafe fuer gewolltes Vinylrauschen."""
 
     score = 100.0
     score -= min(35.0, max(0.0, 0.98 - metrics["active_ratio"]) * 140.0)
@@ -387,7 +384,6 @@ def _score_technisch(metrics: Dict[str, float]) -> float:
 
 
 def _score_kohaerenz(metrics: Dict[str, float]) -> float:
-    """Schaetzt rhythmische und dynamische Stabilitaet."""
 
     score = 100.0
     score -= min(30.0, metrics["bpm_std"] * 4.0)
@@ -400,7 +396,6 @@ def _score_kohaerenz(metrics: Dict[str, float]) -> float:
 
 
 def _distanz_score(value: float, ref: float, scale: float) -> float:
-    """Normalisiert Messwert-Abstand auf eine 0-bis-100-Teilwertung."""
 
     if scale <= 0:
         return 100.0
@@ -408,7 +403,6 @@ def _distanz_score(value: float, ref: float, scale: float) -> float:
 
 
 def _score_genre(metrics: Dict[str, float], ref: Dict[str, Any]) -> float:
-    """Bewertet Naehe zum gespeicherten Klangprofil des Genres."""
 
     parts = [
         _distanz_score(metrics["bpm"], float(ref.get("bpm") or metrics["bpm"]), 10.0),
@@ -422,7 +416,6 @@ def _score_genre(metrics: Dict[str, float], ref: Dict[str, Any]) -> float:
 
 
 def _score_uebergang(metrics: Dict[str, float]) -> float:
-    """Bewertet den Loop-Punkt vom Ende zurueck zum Anfang."""
 
     score = 100.0
     score -= max(0.0, metrics["seam_loudness_jump_db"] - 3.0) * 5.0
@@ -433,7 +426,6 @@ def _score_uebergang(metrics: Dict[str, float]) -> float:
 
 
 def _score_referenz(metrics: Dict[str, float], ref: Dict[str, Any]) -> float:
-    """Beschreibt messbare Naehe zur Referenz, nicht objektive Musikqualitaet."""
 
     vergleich = [
         _distanz_score(metrics["rms_db"], float(ref.get("rms_db") or metrics["rms_db"]), 8.0),
@@ -447,8 +439,30 @@ def _score_referenz(metrics: Dict[str, float], ref: Dict[str, Any]) -> float:
     return clamp_score(float(np.mean(vergleich)))
 
 
-def berechne_fuenf_scores(metrics: Dict[str, float], referenz: Dict[str, Any]) -> Dict[str, float]:
-    """Berechnet genau die fuenf sichtbaren Bewertungsscores."""
+def _score_stille(metrics: Dict[str, float]) -> float:
+
+    score = 100.0
+    score -= max(0.0, metrics["quiet_ratio"] - 0.05) * 200.0
+    return clamp_score(score)
+
+
+def _score_rhythmus(metrics: Dict[str, float]) -> float:
+
+    score = 100.0
+    score -= min(60.0, metrics["bpm_std"] * 3.0)
+    return clamp_score(score)
+
+
+def _score_klangfarbe(metrics: Dict[str, float]) -> float:
+
+    score = 100.0
+    score -= max(0.0, metrics["tone_ratio"] - 0.15) * 90.0
+    score -= max(0.0, metrics["spectral_centroid"] - 2400.0) / 25.0
+    score -= max(0.0, 400.0 - metrics["spectral_centroid"]) / 15.0
+    return clamp_score(score)
+
+
+def berechne_scores(metrics: Dict[str, float], referenz: Dict[str, Any]) -> Dict[str, float]:
 
     return {
         SCORE_KATEGORIEN[0]: _score_technisch(metrics),
@@ -456,17 +470,21 @@ def berechne_fuenf_scores(metrics: Dict[str, float], referenz: Dict[str, Any]) -
         SCORE_KATEGORIEN[2]: _score_genre(metrics, referenz),
         SCORE_KATEGORIEN[3]: _score_uebergang(metrics),
         SCORE_KATEGORIEN[4]: _score_referenz(metrics, referenz),
+        SCORE_KATEGORIEN[5]: _score_stille(metrics),
+        SCORE_KATEGORIEN[6]: _score_rhythmus(metrics),
+        SCORE_KATEGORIEN[7]: _score_klangfarbe(metrics),
     }
 
 
+berechne_fuenf_scores = berechne_scores
+
+
 def _profil_ordner() -> Path:
-    """Speicherort fuer feste Genrestandard-Profile."""
 
     return PROJECT_ROOT / "daten" / "metadata" / "genrestandards"
 
 
 def _baue_genreprofile(referenz_root: Path, profile_dir: Path, pro_genre: int = 20) -> None:
-    """Erstellt gespeicherte Genreprofile aus guten Trainingsclips."""
 
     profile_dir.mkdir(parents=True, exist_ok=True)
     gruppen: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
@@ -494,21 +512,30 @@ def _baue_genreprofile(referenz_root: Path, profile_dir: Path, pro_genre: int = 
                 continue
         if not metrics_rows:
             continue
-        median_metrics = {
-            key: round(median_float([float(item.get(key, 0.0)) for item in metrics_rows]), 5)
-            for key in metrics_rows[0]
-        }
-        technical_scores = [_score_technisch(item) for item in metrics_rows]
-        coherence_scores = [_score_kohaerenz(item) for item in metrics_rows]
-        transition_scores = [_score_uebergang(item) for item in metrics_rows]
-        genre_scores = [_score_genre(item, median_metrics) for item in metrics_rows]
-        reference_scores = [_score_referenz(item, median_metrics) for item in metrics_rows]
+        # Genrestandard = der einzelne beste Referenzclip (rows ist bereits nach
+        # quality_score absteigend sortiert, metrics_rows[0] entspricht also
+        # rows[0]), nicht der Durchschnitt ueber alle Referenzclips. Dadurch
+        # bildet der Standard konsequent den bestmoeglichen Einzeltrack ab und
+        # erreicht bei allen 5 Kategorien 100 Punkte (Vergleich mit sich selbst),
+        # statt durch Mittelung ueber natuerlich streuende echte Tracks unter
+        # 100 zu liegen.
+        bester_metrics = metrics_rows[0]
+        # Vergleichskategorien (Genre-Treue, Referenzaehnlichkeit) vergleichen
+        # den besten Clip mit sich selbst -> mathematisch immer exakt 100.
+        # Die "absoluten" Kategorien (Technik, Kohaerenz, Uebergang, Stille,
+        # Rhythmus, Klangfarbe) messen echte Audio-Eigenschaften unabhaengig
+        # vom Vergleich - hier bleibt der tatsaechlich gemessene Wert stehen,
+        # auch wenn er bei einem einzelnen Referenzclip mal knapp unter 100
+        # liegt, statt ihn kuenstlich auf 100 zu fixieren.
         standard_scores = {
-            SCORE_KATEGORIEN[0]: clamp_score(median_float(technical_scores)),
-            SCORE_KATEGORIEN[1]: clamp_score(median_float(coherence_scores)),
-            SCORE_KATEGORIEN[2]: clamp_score(median_float(genre_scores)),
-            SCORE_KATEGORIEN[3]: clamp_score(median_float(transition_scores)),
-            SCORE_KATEGORIEN[4]: clamp_score(median_float(reference_scores)),
+            SCORE_KATEGORIEN[0]: _score_technisch(bester_metrics),
+            SCORE_KATEGORIEN[1]: _score_kohaerenz(bester_metrics),
+            SCORE_KATEGORIEN[2]: _score_genre(bester_metrics, bester_metrics),
+            SCORE_KATEGORIEN[3]: _score_uebergang(bester_metrics),
+            SCORE_KATEGORIEN[4]: _score_referenz(bester_metrics, bester_metrics),
+            SCORE_KATEGORIEN[5]: _score_stille(bester_metrics),
+            SCORE_KATEGORIEN[6]: _score_rhythmus(bester_metrics),
+            SCORE_KATEGORIEN[7]: _score_klangfarbe(bester_metrics),
         }
         payload = {
             "genre_key": genre,
@@ -517,14 +544,13 @@ def _baue_genreprofile(referenz_root: Path, profile_dir: Path, pro_genre: int = 
             "source": rel(referenz_root),
             "reference_count": len(metrics_rows),
             "scores": standard_scores,
-            "metrics": median_metrics,
-            "hinweis": "Genrestandard aus geprueften lokalen Trainingsclips. Scores dienen als Vergleichsstandard.",
+            "metrics": bester_metrics,
+            "hinweis": "Genrestandard = bester einzelner Referenzclip (nach quality_score), nicht der Durchschnitt.",
         }
         write_json(profile_dir / f"{genre}.json", payload)
 
 
 def _profil_gueltig(path: Path) -> bool:
-    """Prueft, ob ein gespeichertes Profil die aktuelle 5-Score-Struktur hat."""
 
     if not path.exists():
         return False
@@ -537,7 +563,6 @@ def _profil_gueltig(path: Path) -> bool:
 
 
 def lade_genrestandard(genre: Any, referenz_root: Path, pro_genre: int = 20) -> Dict[str, Any]:
-    """Laedt das gespeicherte Referenzprofil des Genres oder erstellt es lokal."""
 
     genre_key = normalisiere_genre(genre)
     profile_dir = _profil_ordner()
@@ -556,6 +581,7 @@ def lade_genrestandard(genre: Any, referenz_root: Path, pro_genre: int = 20) -> 
                 profile_path = fallback_path
                 break
     if not _profil_gueltig(profile_path):
+
         return {
             "genre_key": genre_key,
             "genre": genre_label(genre_key),
@@ -572,13 +598,11 @@ def lade_genrestandard(genre: Any, referenz_root: Path, pro_genre: int = 20) -> 
 
 
 def _score_rows(scores: Dict[str, float]) -> List[Dict[str, Any]]:
-    """Macht Score-Dictionaries fuer CSV/HTML sortiert."""
 
     return [{"Kategorie": key, "Score": scores.get(key, 0.0)} for key in SCORE_KATEGORIEN]
 
 
 def _groesste_unterschiede(standard: Dict[str, float], generiert: Dict[str, float]) -> List[Dict[str, Any]]:
-    """Findet die groessten sichtbaren Score-Abweichungen."""
 
     rows = []
     for key in SCORE_KATEGORIEN:
@@ -596,7 +620,6 @@ def _groesste_unterschiede(standard: Dict[str, float], generiert: Dict[str, floa
 
 
 def _erklaerung(unterschiede: List[Dict[str, Any]]) -> str:
-    """Erstellt eine kurze Auswertung fuer die sichtbare UI."""
 
     if not unterschiede:
         return "Keine Abweichung berechnet."
@@ -619,7 +642,6 @@ def _erklaerung(unterschiede: List[Dict[str, Any]]) -> str:
 
 
 def _svg_chart(title: str, scores: Dict[str, float]) -> str:
-    """Erstellt ein simples Punkt-Liniendiagramm mit fester 0-bis-100-Skala."""
 
     width = 820
     height = 280
@@ -666,7 +688,6 @@ def _svg_chart(title: str, scores: Dict[str, float]) -> str:
 
 
 def _score_liste(title: str, scores: Dict[str, float]) -> str:
-    """Sichtbare fuenf Scores als kompakte Liste."""
 
     items = "\n".join(
         f"<li><span>{html.escape(category)}</span><strong>{float(scores.get(category, 0.0)):.1f}</strong></li>"
@@ -684,7 +705,6 @@ def schreibe_score_html(
     generated_scores: Dict[str, float],
     auswertung: str,
 ) -> None:
-    """Schreibt die sichtbare Bewertung mit genau zwei getrennten Graphen."""
 
     rel_audio = html.escape(os.path.relpath(audio_path, path.parent))
     content = f"""<!doctype html>
@@ -738,8 +758,8 @@ def bewerte_audio_mit_genrestandard(
     ausgabe_dir: Optional[Path] = None,
     referenz_root: Optional[Path] = None,
     referenzen_pro_genre: int = 20,
+    seam_boundaries_sec: Optional[List[float]] = None,
 ) -> Dict[str, Any]:
-    """Bewertet eine fertige Audio anhand fuenf Scores und schreibt die Visualisierung."""
 
     audio_path = audio_path.expanduser().resolve()
     output_dir = (ausgabe_dir or audio_path.parent).expanduser().resolve()
@@ -748,8 +768,8 @@ def bewerte_audio_mit_genrestandard(
     standard = lade_genrestandard(genre, referenz_root, referenzen_pro_genre)
     standard_scores = {key: float((standard.get("scores") or {}).get(key, 0.0)) for key in SCORE_KATEGORIEN}
     audio = decode_audio(audio_path)
-    metrics = score_kennwerte(audio)
-    generated_scores = berechne_fuenf_scores(metrics, dict(standard.get("metrics") or {}))
+    metrics = score_kennwerte(audio, seam_boundaries_sec)
+    generated_scores = berechne_scores(metrics, dict(standard.get("metrics") or {}))
     unterschiede = _groesste_unterschiede(standard_scores, generated_scores)
     auswertung = _erklaerung(unterschiede)
 
@@ -798,7 +818,6 @@ def bewerte_audio_mit_genrestandard(
 
 
 def segment_rms_values(audio: np.ndarray, step_seconds: float = 3.0) -> List[float]:
-    """Berechnet Lautstaerke-Werte fuer kurze Zeitfenster."""
 
     step = int(round(step_seconds * SAMPLE_RATE))
     values: List[float] = []
@@ -810,7 +829,6 @@ def segment_rms_values(audio: np.ndarray, step_seconds: float = 3.0) -> List[flo
 
 
 def transition_note(previous: Optional[np.ndarray], current: np.ndarray) -> str:
-    """Bewertet, ob Anfang und vorheriges Ende technisch zusammenpassen."""
 
     if previous is None:
         return "Startabschnitt"
@@ -830,7 +848,6 @@ def transition_note(previous: Optional[np.ndarray], current: np.ndarray) -> str:
 
 
 def classify_section(audio: np.ndarray, previous: Optional[np.ndarray]) -> Dict[str, Any]:
-    """Bewertet einen Abschnitt mit einfachen technischen Regeln."""
 
     duration = len(audio) / float(SAMPLE_RATE)
     peak = float(np.max(np.abs(audio))) if len(audio) else 0.0
@@ -914,7 +931,6 @@ def classify_section(audio: np.ndarray, previous: Optional[np.ndarray]) -> Dict[
 
 
 def write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
-    """Schreibt eine CSV mit allen vorkommenden Spalten."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     fields: List[str] = []
@@ -930,7 +946,6 @@ def write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
 
 
 def write_bewertung_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
-    """Schreibt die normale Longform-Bewertung ohne technische Messspalten."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = [
@@ -959,14 +974,12 @@ def write_bewertung_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
 
 
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
-    """Schreibt einen JSON-Report."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def summarize(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Fasst Abschnittsbewertungen fuer den JSON-Report zusammen."""
 
     counts: Dict[str, int] = {}
     for row in rows:
@@ -989,13 +1002,6 @@ def bewerte_audio_datei(
     abschnitt_sekunden: float = 300.0,
     bewertung_csv_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Bewertet eine Audio-Datei abschnittsweise und schreibt CSV/JSON.
-
-    `automatische_bewertung.csv` bleibt der technische Detailreport. Wenn
-    `bewertung_csv_path` gesetzt ist, wird zusaetzlich die normale
-    Longform-Bewertungsdatei geschrieben, damit der menschliche Review direkt
-    an derselben Stelle weiterarbeiten kann.
-    """
 
     audio_path = audio_path.expanduser().resolve()
     output_dir = (ausgabe_dir or audio_path.parent).expanduser().resolve()
@@ -1071,7 +1077,6 @@ POSITIVE_KEYWORDS: Dict[str, List[str]] = {
 
 
 def lese_bewertungs_csv(csv_path: Path) -> List[Dict[str, str]]:
-    """Liest eine Bewertungs-CSV robust ein."""
 
     rows: List[Dict[str, str]] = []
     text = csv_path.read_text(encoding="utf-8", errors="replace")
@@ -1088,7 +1093,6 @@ def lese_bewertungs_csv(csv_path: Path) -> List[Dict[str, str]]:
 
 
 def notiz_aus_zeile(row: Dict[str, str]) -> str:
-    """Extrahiert den eigentlichen Bewertungstext aus einer CSV-Zeile."""
 
     for key, value in row.items():
         key_lower = key.lower()
@@ -1099,13 +1103,11 @@ def notiz_aus_zeile(row: Dict[str, str]) -> str:
 
 
 def zaehle_keywords(notiz: str, keyword_dict: Dict[str, List[str]]) -> List[str]:
-    """Ordnet eine Notiz anhand einfacher Suchwoerter Kategorien zu."""
 
     return [kategorie for kategorie, woerter in keyword_dict.items() if any(wort in notiz for wort in woerter)]
 
 
 def _berechne_trend(pro_durchgang: List[Dict[str, Any]], problem_key: str) -> bool:
-    """Vergleicht erste und zweite Haelfte der Bewertungsdurchgaenge."""
 
     if len(pro_durchgang) < 4:
         return False
@@ -1120,7 +1122,6 @@ def _berechne_trend(pro_durchgang: List[Dict[str, Any]], problem_key: str) -> bo
 
 
 def _erstelle_fazit(probleme: List[Tuple[str, int]], gesamt: int, trend_bass: bool, trend_shaker: bool) -> str:
-    """Erstellt ein kurzes Fazit fuer die Bachelorarbeits-Auswertung."""
 
     if not probleme:
         return "Keine Probleme gefunden."
@@ -1132,7 +1133,6 @@ def _erstelle_fazit(probleme: List[Tuple[str, int]], gesamt: int, trend_bass: bo
 
 
 def analysiere_alle_durchgaenge(bewertungs_root: Path) -> Dict[str, Any]:
-    """Analysiert alle `durchgang_*/bewertung.csv` unter einem Ordner."""
 
     gesamt_probleme: Dict[str, int] = defaultdict(int)
     gesamt_positiv: Dict[str, int] = defaultdict(int)
@@ -1192,7 +1192,6 @@ def analysiere_alle_durchgaenge(bewertungs_root: Path) -> Dict[str, Any]:
 
 
 def schreibe_analyse_report(report: Dict[str, Any], ausgabe_dir: Path) -> Tuple[Path, Path]:
-    """Speichert JSON- und CSV-Bericht der Bewertungsanalyse."""
 
     ausgabe_dir.mkdir(parents=True, exist_ok=True)
     json_path = ausgabe_dir / "bewertungs_analyse.json"

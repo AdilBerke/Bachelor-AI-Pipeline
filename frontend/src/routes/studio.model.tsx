@@ -123,17 +123,37 @@ function ModelPage() {
         title="Projektsteuerung"
         description="Alle lokalen Audio-Funktionen an einem Ort: Quellen suchen, Clips vorbereiten, Merkmale berechnen, LoRA trainieren und Testaudios erzeugen."
         actions={
-          <Link
-            to="/studio/jobs"
-            className="inline-flex h-10 items-center gap-2 rounded-full border hairline px-3 text-sm hover:border-warm/50"
-          >
-            <ListChecks className="h-4 w-4" />
-            Läufe
-          </Link>
+          <>
+            <div className="mono flex items-center gap-3 px-1 text-[11px] text-muted-foreground">
+              <span>{overview.data?.status.device ?? "lokal"}</span>
+              {latestJob && (
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={[
+                      "h-1.5 w-1.5 rounded-full",
+                      latestJob.status === "running" || latestJob.status === "queued"
+                        ? "bg-warm animate-pulse-soft"
+                        : latestJob.status === "failed"
+                          ? "bg-destructive"
+                          : "bg-emerald-400",
+                    ].join(" ")}
+                  />
+                  {latestJob.status}
+                </span>
+              )}
+            </div>
+            <Link
+              to="/studio/jobs"
+              className="inline-flex h-10 items-center gap-2 rounded-full border hairline px-3 text-sm hover:border-warm/50"
+            >
+              <ListChecks className="h-4 w-4" />
+              Läufe
+            </Link>
+          </>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <StatCard
           label="Dataset"
           value={`${dataset?.selectedTotal ?? 0}/${dataset?.targetTotal ?? 5000}`}
@@ -146,16 +166,6 @@ function ModelPage() {
           hint={lora?.adapter ?? "training/musicgen/lora_training/adapter.pt"}
           tone={lora?.adapterExists ? "accent" : "muted"}
         />
-        <StatCard
-          label="GPU"
-          value={<span className="text-base">{overview.data?.status.device ?? "lokal"}</span>}
-          hint="VRAM-Limit in der Pipeline: 80 %"
-        />
-        <StatCard
-          label="Letzter Lauf"
-          value={<span className="text-base">{latestJob?.status ?? "kein Lauf"}</span>}
-          hint={latestJob?.jobId ?? "noch kein Website-Job"}
-        />
       </div>
 
       <section className="rounded-2xl border hairline bg-surface/40 p-5">
@@ -163,34 +173,34 @@ function ModelPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground">Genre & Quellen</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Top-10-Suche und neue Genres nutzen die zentrale Projektkonfiguration.
+              Top-5-Suche und neue Genres nutzen die zentrale Projektkonfiguration.
             </p>
           </div>
           <StatusBadge status={overview.data?.status.online ? "online" : "offline"} />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Aktives Genre">
-              <select
-                value={genreKey}
-                onChange={(event) => setSelectedGenre(event.target.value)}
-                className="h-10 w-full rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
-              >
-                {genres.map((genre) => (
-                  <option key={genre.id} value={genre.id}>
-                    {genre.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Suchstimmung">
-              <input
-                value={mood}
-                onChange={(event) => setMood(event.target.value)}
-                className="h-10 w-full rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
-              />
-            </Field>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Aktives Genre">
+            <select
+              value={genreKey}
+              onChange={(event) => setSelectedGenre(event.target.value)}
+              className="h-10 w-full rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
+            >
+              {genres.map((genre) => (
+                <option key={genre.id} value={genre.id}>
+                  {genre.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Suchstimmung">
+            <input
+              value={mood}
+              onChange={(event) => setMood(event.target.value)}
+              className="h-10 w-full rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
+            />
+          </Field>
+          <Field label="Optionen">
             <label className="flex h-10 items-center justify-between rounded-lg border hairline bg-background/40 px-3 text-sm">
               Bekannte Videos erlauben
               <input
@@ -200,59 +210,65 @@ function ModelPage() {
                 className="h-4 w-4 accent-warm"
               />
             </label>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-            <ActionButton
-              icon={<Search className="h-4 w-4" />}
-              label={`Top 10 suchen: ${genreName}`}
-              onClick={() =>
-                run("top10", { genre: genreKey, stimmung: mood, bekannteErlauben })
-              }
-              busy={runMutation.isPending}
-            />
-            <ActionButton
-              icon={<Search className="h-4 w-4" />}
-              label="Alle Top10-Suchen aktualisieren (5 Genres)"
-              onClick={() => runAllTop10Mutation.mutate()}
-              busy={runAllTop10Mutation.isPending}
-            />
-            {runAllTop10Mutation.isPending && (
-              <p className="text-xs text-muted-foreground">
-                Läuft für alle 5 Genres parallel im Hintergrund - dauert je nach Suchpool
-                ca. 15-20 Min. Fortschritt unter "Läufe" sichtbar.
-              </p>
-            )}
-            <ActionButton
-              icon={<Database className="h-4 w-4" />}
-              label="Fehlende Quellen laden"
-              onClick={() => run("clips", { genres: genreKey, zielClips, mitDownloads: true })}
-              busy={runMutation.isPending}
-            />
-          </div>
+          </Field>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-          <input
-            value={newGenre}
-            onChange={(event) => setNewGenre(event.target.value)}
-            placeholder="Neues Genre, z.B. Rainy Chill Lofi"
-            className="h-10 rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <ActionButton
+            icon={<Search className="h-4 w-4" />}
+            label={`Top 5 suchen: ${genreName}`}
+            onClick={() =>
+              run("top10", { genre: genreKey, stimmung: mood, bekannteErlauben })
+            }
+            busy={runMutation.isPending}
+            variant="primary"
           />
-          <input
-            value={newCaption}
-            onChange={(event) => setNewCaption(event.target.value)}
-            placeholder="Optionaler Prompt / Caption"
-            className="h-10 rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
+          <ActionButton
+            icon={<Search className="h-4 w-4" />}
+            label="Alle Top5-Suchen aktualisieren (5 Genres)"
+            onClick={() => runAllTop10Mutation.mutate()}
+            busy={runAllTop10Mutation.isPending}
           />
-          <button
-            onClick={() => genreMutation.mutate()}
-            disabled={!newGenre.trim() || genreMutation.isPending}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border hairline px-4 text-sm hover:border-warm/50 disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" />
-            Genre speichern
-          </button>
+          <ActionButton
+            icon={<Database className="h-4 w-4" />}
+            label="Fehlende Quellen laden"
+            onClick={() => run("clips", { genres: genreKey, zielClips, mitDownloads: true })}
+            busy={runMutation.isPending}
+          />
+        </div>
+        {runAllTop10Mutation.isPending && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Läuft für alle 5 Genres parallel im Hintergrund - dauert je nach Suchpool
+            ca. 15-20 Min. Fortschritt unter "Läufe" sichtbar.
+          </p>
+        )}
+
+        <div className="mt-6 border-t hairline pt-4">
+          <h3 className="mono mb-3 text-[10px] uppercase tracking-widest text-muted-foreground">
+            Neues Genre anlegen
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <input
+              value={newGenre}
+              onChange={(event) => setNewGenre(event.target.value)}
+              placeholder="Neues Genre, z.B. Rainy Chill Lofi"
+              className="h-10 rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
+            />
+            <input
+              value={newCaption}
+              onChange={(event) => setNewCaption(event.target.value)}
+              placeholder="Optionaler Prompt / Caption"
+              className="h-10 rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
+            />
+            <button
+              onClick={() => genreMutation.mutate()}
+              disabled={!newGenre.trim() || genreMutation.isPending}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border hairline px-4 text-sm hover:border-warm/50 disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              Genre speichern
+            </button>
+          </div>
         </div>
 
         <Top10Table rows={top10.data ?? []} />
@@ -389,6 +405,7 @@ function ModelPage() {
             label="Neues Training starten"
             onClick={() => run("lora_training")}
             busy={runMutation.isPending}
+            variant="primary"
           />
           <div className="rounded-lg border hairline bg-background/40 p-2">
             <input
@@ -453,17 +470,24 @@ function ActionButton({
   label,
   onClick,
   busy,
+  variant = "secondary",
 }: {
   icon: ReactNode;
   label: string;
   onClick: () => void;
   busy?: boolean;
+  variant?: "primary" | "secondary";
 }) {
   return (
     <button
       onClick={onClick}
       disabled={busy}
-      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border hairline bg-background/40 px-3 py-2 text-sm transition hover:border-warm/50 hover:bg-warm/5 disabled:opacity-50"
+      className={[
+        "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition disabled:opacity-50",
+        variant === "primary"
+          ? "border-warm/50 bg-warm/15 text-warm hover:bg-warm/25"
+          : "hairline bg-background/40 hover:border-warm/50 hover:bg-warm/5",
+      ].join(" ")}
     >
       {icon}
       <span>{busy ? "Startet ..." : label}</span>
@@ -476,7 +500,7 @@ function Top10Table({ rows }: { rows: Top10Candidate[] }) {
   return (
     <div className="mt-5 overflow-hidden rounded-lg border hairline">
       <div className="mono border-b hairline bg-surface-2/30 px-3 py-2 text-xs text-muted-foreground">
-        Neueste Top-10-Ergebnisse
+        Neueste Top-5-Ergebnisse
       </div>
       <div className="max-h-80 overflow-auto">
         <table className="w-full text-sm">
@@ -548,6 +572,7 @@ function SmallNumber({
 }
 
 function formatNumber(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
   const number = Number(value);
   if (!Number.isFinite(number)) return "-";
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(number);

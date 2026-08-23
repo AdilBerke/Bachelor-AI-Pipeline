@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""Erstellt gepruefte Trainingsdaten aus menschlicher Bewertung.
-
-Die Datei kopiert keine WAV-Dateien und startet kein Training. Sie liest das
-LoRA Manifest-Dataset, uebernimmt deine Review-Entscheidung aus
-`lora_review_001` und schreibt ein neues Manifest-Dataset:
-
-- Quellen mit Status `Schlecht` werden komplett ausgeschlossen.
-- Quellen mit Status `Pruefen` bleiben enthalten, werden aber markiert.
-- Gute Quellen bleiben normal enthalten.
-
-So kann LoRA spaeter mit demselben Clip-Pool arbeiten, ohne bekannte schlechte
-Quellen erneut zu trainieren.
-"""
 
 from __future__ import annotations
 
@@ -49,12 +36,10 @@ SPLITS = ("train", "valid", "test")
 
 
 def jetzt_utc() -> str:
-    """UTC-Zeitstempel fuer reproduzierbare Reports."""
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def rel(path: Path) -> str:
-    """Gibt Projektpfade kurz aus."""
     try:
         return str(path.resolve().relative_to(PROJEKTWURZEL))
     except Exception:
@@ -62,7 +47,6 @@ def rel(path: Path) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    """CLI fuer die sichere Dataset-Bereinigung."""
     parser = argparse.ArgumentParser(description="Erstellt gepruefte MusicGen-Trainingsdaten.")
     parser.add_argument("--basis", default=str(STANDARD_BASIS))
     parser.add_argument("--quelle", default=str(STANDARD_QUELLE), help="Alle vorhandenen Import-Datasets zum Nachfuellen.")
@@ -85,13 +69,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def lese_csv(path: Path) -> list[dict[str, str]]:
-    """Liest CSV-Dateien defensiv."""
     with path.open("r", encoding="utf-8", newline="") as handle:
         return [dict(row) for row in csv.DictReader(handle)]
 
 
 def lese_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Liest ein Manifest."""
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as handle:
         for line_number, raw_line in enumerate(handle, start=1):
@@ -106,7 +88,6 @@ def lese_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    """Schreibt ein Manifest."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
@@ -114,7 +95,6 @@ def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
-    """Schreibt einen CSV-Report."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -123,7 +103,6 @@ def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) 
 
 
 def manifest_roots(root: Path) -> list[Path]:
-    """Findet ein Dataset oder alle Import-Unterdatasets."""
     root = root.expanduser().resolve()
     if all((root / split / "data.jsonl").exists() for split in SPLITS):
         return [root]
@@ -132,7 +111,6 @@ def manifest_roots(root: Path) -> list[Path]:
 
 
 def normalisiere_status(value: str) -> str:
-    """Vereinheitlicht menschliche Statuswerte."""
     text = str(value or "").strip().lower()
     if text in {"gut", "ok", "sehr gut"}:
         return "Gut"
@@ -144,7 +122,6 @@ def normalisiere_status(value: str) -> str:
 
 
 def lade_review_policy(bewertung_path: Path, quellen_path: Path) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
-    """Verknuepft Review-Samples mit ihren echten Quell-IDs."""
     bewertungen = {row.get("Sample", "").strip(): row for row in lese_csv(bewertung_path)}
     quellen = lese_csv(quellen_path)
     policy: dict[str, dict[str, Any]] = {}
@@ -169,23 +146,19 @@ def lade_review_policy(bewertung_path: Path, quellen_path: Path) -> tuple[dict[s
 
 
 def source_id(row: dict[str, Any]) -> str:
-    """Findet die Quell-ID in Manifest-Zeilen."""
     return str(row.get("source_id") or row.get("source_key") or row.get("source_video_id") or "").strip()
 
 
 def erkenne_genre(row: dict[str, Any]) -> str:
-    """Rueckwaertskompatibler Name fuer die gemeinsame Genre-Regel."""
 
     return erkenne_genre_gemeinsam(row)
 
 
 def genre(row: dict[str, Any]) -> str:
-    """Findet das LoRA-Genre in Manifest-Zeilen."""
     return erkenne_genre(row)
 
 
 def clip_key(row: dict[str, Any]) -> str:
-    """Erkennt doppelte Clips ueber Quelle und Zeitfenster."""
     sid = quellen_schluessel(row, PROJEKTWURZEL)
     start = row.get("start_time_sec", row.get("clip_start_sec", ""))
     end = row.get("end_time_sec", row.get("clip_end_sec", ""))
@@ -193,7 +166,6 @@ def clip_key(row: dict[str, Any]) -> str:
 
 
 def lade_kandidaten(basis: Path, quelle: Path, *, nur_basis: bool) -> list[dict[str, Any]]:
-    """Laedt Basisclips oder alle vorhandenen Importclips zum Nachfuellen."""
     roots = [basis] if nur_basis else manifest_roots(quelle)
     if not roots:
         roots = [basis]
@@ -223,7 +195,6 @@ def filtere_rows(
     *,
     pruefen_ausschliessen: bool,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Filtert Manifest-Zeilen anhand der Review-Policy."""
     accepted: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
     for row in rows:
@@ -257,7 +228,6 @@ def filtere_rows(
 
 
 def main() -> int:
-    """Erstellt die neuen geprueften Manifest-Trainingsdaten."""
     args = parse_args()
     basis = Path(args.basis).expanduser().resolve()
     quelle = Path(args.quelle).expanduser().resolve()

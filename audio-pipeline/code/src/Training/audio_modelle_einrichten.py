@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""Lokales Setup fuer optionale Audio-Qualitaetsmodelle.
-
-Die normale MusicGen-Pipeline laedt absichtlich keine externen Modelle. Dieses
-Skript ist der bewusste Einmal-Schritt, wenn die Nachbearbeitung komplett lokal
-mit DeepFilterNet, Demucs, Matchering oder AudioSR vorbereitet werden soll.
-"""
 
 from __future__ import annotations
 
@@ -39,7 +33,6 @@ DEMUCS_CACHE = MODEL_ROOT / "demucs"
 
 @dataclass(frozen=True)
 class ModellSetup:
-    """Beschreibt ein optionales lokales Audio-Tool."""
 
     name: str
     pip_pakete: List[str]
@@ -240,7 +233,6 @@ def install_modelle(targets: List[str], dry_run: bool) -> List[Dict[str, Any]]:
 
 
 def download_clap(dry_run: bool) -> Dict[str, Any]:
-    """Laedt CLAP lokal fuer Text-Audio-Aehnlichkeitspruefung."""
     command = [
         str(PYTHON),
         "-c",
@@ -268,7 +260,6 @@ def download_clap(dry_run: bool) -> Dict[str, Any]:
 
 
 def download_demucs(dry_run: bool) -> Dict[str, Any]:
-    """Laedt Demucs-Gewichte lokal fuer Bass/Drums/Stem-Analyse."""
     command = [
         str(PYTHON),
         "-c",

@@ -6,6 +6,13 @@ function scoreValue(scores: ScoreMap, category: string): number {
   return Math.max(0, Math.min(100, value));
 }
 
+// Kategorien, die fuer diese Audio (noch) gar nicht berechnet wurden - z.B.
+// bei Bewertungen von vor der 8-Kategorien-Erweiterung. 0 waere eine echte,
+// sehr schlechte Messung und liesse sich sonst nicht von "fehlt" unterscheiden.
+function vorhandeneKategorien(scores: ScoreMap): typeof SCORE_CATEGORIES[number][] {
+  return SCORE_CATEGORIES.filter((category) => scores?.[category] !== undefined);
+}
+
 function scorePoints(scores: ScoreMap) {
   const width = 520;
   const height = 220;
@@ -15,9 +22,10 @@ function scorePoints(scores: ScoreMap) {
   const bottom = 58;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
+  const kategorien = vorhandeneKategorien(scores);
 
-  return SCORE_CATEGORIES.map((category, index) => {
-    const x = left + (plotWidth / (SCORE_CATEGORIES.length - 1)) * index;
+  return kategorien.map((category, index) => {
+    const x = left + (plotWidth / Math.max(1, kategorien.length - 1)) * index;
     const y = top + plotHeight - (scoreValue(scores, category) / 100) * plotHeight;
     return { category, x, y, value: scoreValue(scores, category) };
   });
@@ -67,9 +75,9 @@ function ScoreGraph({ title, scores }: { title: string; scores: ScoreMap }) {
         ))}
       </svg>
       <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-        {SCORE_CATEGORIES.map((category, index) => (
-          <div key={category}>
-            {index + 1}. {category}
+        {points.map((point, index) => (
+          <div key={point.category}>
+            {index + 1}. {point.category}
           </div>
         ))}
       </div>
@@ -87,7 +95,9 @@ function ScoreList({ title, scores }: { title: string; scores: ScoreMap }) {
         {SCORE_CATEGORIES.map((category) => (
           <div key={category} className="flex items-center justify-between gap-3 text-sm">
             <span className="text-muted-foreground">{category}</span>
-            <span className="mono text-foreground">{scoreValue(scores, category).toFixed(1)}</span>
+            <span className="mono text-foreground">
+              {scores?.[category] === undefined ? "–" : scoreValue(scores, category).toFixed(1)}
+            </span>
           </div>
         ))}
       </div>

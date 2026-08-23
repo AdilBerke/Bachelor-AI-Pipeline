@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""Bereitet das LoRA-Clip-Dataset aus Top-5-Quellen vor.
-
-Diese Pipeline verbindet die bereits vorhandenen Bausteine:
-
-1. Top-5-CSV-Dateien je Genre lesen.
-2. MP3s ueber den Crawler-Import herunterladen.
-3. Aus MP3s saubere 30s-WAV-Clips schneiden.
-4. Das genrebalancierte LoRA-Zieldataset neu bauen.
-5. Das Ergebnis validieren.
-
-Wichtig: Ein normaler Start fuehrt die Vorbereitung wirklich aus. Fuer eine
-reine Vorschau gibt es ``--plan``.
-"""
 
 from __future__ import annotations
 
@@ -68,7 +55,6 @@ GENRES: dict[str, dict[str, str]] = {
 
 @dataclass
 class Quelle:
-    """Eine ausgewaehlte Quelle aus einer Top-5-CSV."""
 
     genre_key: str
     genre_label: str
@@ -81,7 +67,6 @@ class Quelle:
 
 
 def parse_args() -> argparse.Namespace:
-    """Liest die Kommandozeilenargumente."""
 
     parser = argparse.ArgumentParser(
         description="Laedt Top-5-Quellen je Genre und erstellt daraus 30s-Clips fuer das LoRA-Dataset."
@@ -137,6 +122,8 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.plan and args.ausfuehren:
         parser.error("Bitte entweder --plan oder --ausfuehren nutzen, nicht beides.")
+
+
     args.ausfuehren = not args.plan
     if not args.mit_downloads:
         args.lokale_mp3s = True
@@ -144,13 +131,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def jetzt_name() -> str:
-    """Erzeugt einen kurzen Zeitstempel fuer Reports."""
 
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 def rel(path: Path) -> str:
-    """Gibt Pfade relativ zur Projektwurzel aus, falls moeglich."""
 
     try:
         return str(path.resolve().relative_to(PROJEKTWURZEL))
@@ -159,7 +144,6 @@ def rel(path: Path) -> str:
 
 
 def ffprobe_duration(path: Path) -> float:
-    """Liest die Audiodauer mit ffprobe, ohne die ganze MP3 in Python zu laden."""
 
     result = subprocess.run(
         [
@@ -181,7 +165,6 @@ def ffprobe_duration(path: Path) -> float:
 
 
 def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    """Schreibt Manifestzeilen direkt, damit kein zweiter Prozess noetig ist."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -190,7 +173,6 @@ def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def split_fuer_index(index: int, seed: int) -> str:
-    """Verteilt Clips reproduzierbar auf Train, Valid und Test."""
 
     import random
 
@@ -203,7 +185,6 @@ def split_fuer_index(index: int, seed: int) -> str:
 
 
 def schreibe_wav_segment(source: Path, target: Path, start_sec: float, duration_sec: float) -> None:
-    """Schneidet ein einzelnes WAV-Segment ueber ffmpeg."""
 
     target.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
@@ -237,7 +218,6 @@ def schreibe_wav_segment(source: Path, target: Path, start_sec: float, duration_
 
 
 def wav_dauer_ok(path: Path, expected_sec: float, tolerance: float = 0.10) -> bool:
-    """Prueft kurz den WAV-Header."""
 
     import wave
 
@@ -252,7 +232,6 @@ def wav_dauer_ok(path: Path, expected_sec: float, tolerance: float = 0.10) -> bo
 
 
 def slug(text: str, fallback: str = "quelle") -> str:
-    """Macht aus freiem Text einen kurzen Dateinamenbestandteil."""
 
     value = str(text or "").lower().strip()
     value = value.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
@@ -261,7 +240,6 @@ def slug(text: str, fallback: str = "quelle") -> str:
 
 
 def video_id(value: str) -> str:
-    """Extrahiert eine YouTube-ID aus URL oder Roh-ID."""
 
     value = str(value or "").strip()
     if re.fullmatch(r"[A-Za-z0-9_-]{11}", value):
@@ -280,7 +258,6 @@ def video_id(value: str) -> str:
 
 
 def neueste_top10_csv(genre_key: str) -> Path | None:
-    """Findet die neueste Top-10-CSV fuer ein Genre."""
 
     files = []
     for pattern in (
@@ -310,7 +287,6 @@ def neueste_top10_csv(genre_key: str) -> Path | None:
 
 
 def score_wert(row: dict[str, str], key: str) -> float | None:
-    """Liest einen numerischen Score aus einer Top-10-CSV."""
 
     raw = str(row.get(key) or "").strip().replace(",", ".")
     if not raw:
@@ -322,7 +298,6 @@ def score_wert(row: dict[str, str], key: str) -> float | None:
 
 
 def dataset_name_fuer_quelle(quelle: Quelle) -> str:
-    """Erzeugt den tatsaechlichen Import-Datasetnamen fuer eine Quelle."""
 
     if quelle.dataset_name:
         return quelle.dataset_name
@@ -330,7 +305,6 @@ def dataset_name_fuer_quelle(quelle: Quelle) -> str:
 
 
 def genre_aus_mp3_name(path: Path) -> str | None:
-    """Ordnet lokale MP3-Dateien einem der Trainingsgenres zu."""
 
     text = normalisiere(path.name).replace("lo fi", "lofi")
     if not any(token in text for token in ("lofi", "lo fi", "lowfi", "chillhop")):
@@ -348,7 +322,6 @@ def genre_aus_mp3_name(path: Path) -> str | None:
 
 
 def video_id_aus_mp3_name(path: Path) -> str:
-    """Extrahiert die Video-ID aus Dateinamen wie Titel [VIDEOID].mp3."""
 
     match = re.search(r"\[([A-Za-z0-9_-]{11})\]\.mp3$", path.name)
     if match:
@@ -357,7 +330,6 @@ def video_id_aus_mp3_name(path: Path) -> str:
 
 
 def quellenzeile(quelle: Quelle) -> dict[str, Any]:
-    """Formt eine Quelle so, dass die gemeinsamen LoFi-Regeln greifen."""
 
     return {
         "source_title": quelle.titel,
@@ -371,7 +343,6 @@ def quellenzeile(quelle: Quelle) -> dict[str, Any]:
 
 
 def lokale_mp3_quellen(args: argparse.Namespace, summary: dict[str, Any] | None = None) -> tuple[list[Quelle], dict[str, Any]]:
-    """Erzeugt Quellen aus lokal vorhandenen MP3s, ohne YouTube zu kontaktieren."""
 
     summary = summary or {}
     erlaubte_genres = {item.strip() for item in args.genres.split(",") if item.strip()}
@@ -416,7 +387,6 @@ def lokale_mp3_quellen(args: argparse.Namespace, summary: dict[str, Any] | None 
 
 
 def manifest_zeilen(dataset_dir: Path) -> int:
-    """Zaehlt Manifestzeilen eines Import-Datasets."""
 
     total = 0
     for split in ("train", "valid", "test"):
@@ -427,7 +397,6 @@ def manifest_zeilen(dataset_dir: Path) -> int:
 
 
 def quelle_fertig(quelle: Quelle) -> bool:
-    """Prueft, ob diese Quelle bereits erfolgreich zu Clips verarbeitet wurde."""
 
     dataset_dir = IMPORT_DATASET / dataset_name_fuer_quelle(quelle)
     summary_path = dataset_dir / "dataset_summary.json"
@@ -438,11 +407,12 @@ def quelle_fertig(quelle: Quelle) -> bool:
     except json.JSONDecodeError:
         return False
     accepted = int(summary.get("accepted_count") or manifest_zeilen(dataset_dir))
+
+
     return bool(summary.get("training_ready")) and accepted > 0
 
 
 def bekannte_fehlquellen() -> set[str]:
-    """Sammelt Video-IDs, die in frueheren Laeufen schon blockiert waren."""
 
     ids: set[str] = set()
     if DOWNLOAD_FEHLER_MARKER.exists():
@@ -481,7 +451,6 @@ def bekannte_fehlquellen() -> set[str]:
 
 
 def schlechte_quellen_ids() -> set[str]:
-    """Liest Quellen, die durch menschliche Bewertung ausgeschlossen wurden."""
 
     ids: set[str] = set()
     if QUALITAET_POLICY_JSON.exists():
@@ -529,7 +498,6 @@ def schlechte_quellen_ids() -> set[str]:
 
 
 def ist_schlechte_quelle(quelle: Quelle, schlechte_ids: set[str]) -> bool:
-    """Prueft, ob eine Quelle im menschlichen Review schlecht bewertet wurde."""
 
     kandidaten = {
         str(quelle.video_id or "").strip().lower(),
@@ -539,7 +507,6 @@ def ist_schlechte_quelle(quelle: Quelle, schlechte_ids: set[str]) -> bool:
 
 
 def download_fehler_grund(log_path: Path) -> str:
-    """Erkennt haeufige Downloadfehler aus dem Log."""
 
     try:
         text = log_path.read_text(encoding="utf-8", errors="ignore")
@@ -556,7 +523,6 @@ def download_fehler_grund(log_path: Path) -> str:
 
 
 def markiere_fehlquelle(quelle: Quelle, grund: str, log_path: Path) -> None:
-    """Merkt sich fehlgeschlagene Quellen, damit sie spaeter uebersprungen werden."""
 
     DOWNLOAD_FEHLER_MARKER.parent.mkdir(parents=True, exist_ok=True)
     row = {
@@ -573,7 +539,6 @@ def markiere_fehlquelle(quelle: Quelle, grund: str, log_path: Path) -> None:
 
 
 def lese_quellen(args: argparse.Namespace, summary: dict[str, Any] | None = None) -> tuple[list[Quelle], dict[str, Any]]:
-    """Liest die gewuenschten Top-10-Quellen aus den Crawler-Reports."""
 
     summary = summary or {}
     fehlquellen = bekannte_fehlquellen()
@@ -655,7 +620,6 @@ def lese_quellen(args: argparse.Namespace, summary: dict[str, Any] | None = None
 
 
 def finde_mp3(quelle: Quelle) -> Path | None:
-    """Findet die lokale MP3 zu einer Quelle, falls sie schon geladen wurde."""
 
     if not RAW_MP3_ORDNER.exists():
         return None
@@ -671,7 +635,6 @@ def finde_mp3(quelle: Quelle) -> Path | None:
 
 
 def befehl_anzeigen(command: list[str]) -> str:
-    """Formatiert einen Befehl kompakt fuer Reports."""
 
     parts: list[str] = []
     for item in command:
@@ -683,7 +646,6 @@ def befehl_anzeigen(command: list[str]) -> str:
 
 
 def kurzer_titel(text: str, max_len: int = 72) -> str:
-    """Kuerzt lange Videotitel fuer eine ruhige Terminalanzeige."""
 
     value = " ".join(str(text or "").split())
     value = value.encode("ascii", "ignore").decode("ascii")
@@ -694,7 +656,6 @@ def kurzer_titel(text: str, max_len: int = 72) -> str:
 
 
 def log_ist_nur_unvollstaendig(log_path: Path) -> bool:
-    """Erkennt den Zustand "noch nicht genug Clips" statt eines echten Fehlers."""
 
     try:
         text = log_path.read_text(encoding="utf-8", errors="ignore")
@@ -712,7 +673,6 @@ def log_ist_nur_unvollstaendig(log_path: Path) -> bool:
 
 
 def status_label(code: int, log_path: Path) -> str:
-    """Gibt einen ehrlichen Status fuer die Terminalanzeige zurueck."""
 
     if code == 0:
         return "ok"
@@ -722,7 +682,6 @@ def status_label(code: int, log_path: Path) -> str:
 
 
 def dataset_stand_zeile(summary: dict[str, Any]) -> str:
-    """Erzeugt eine kompakte Fortschrittszeile fuer den aktuellen Datasetstand."""
 
     if not summary:
         return "Stand | noch kein Dataset-Summary"
@@ -740,7 +699,6 @@ def dataset_stand_zeile(summary: dict[str, Any]) -> str:
 
 
 def run_command(command: list[str], log_path: Path, trocken: bool, status_text: str = "") -> int:
-    """Fuehrt einen Unterbefehl aus und schreibt dessen Ausgabe in ein Log."""
 
     log_path.parent.mkdir(parents=True, exist_ok=True)
     if trocken:
@@ -767,7 +725,6 @@ def run_command(command: list[str], log_path: Path, trocken: bool, status_text: 
 
 
 def download_mp3(quelle: Quelle, args: argparse.Namespace, log_dir: Path, trocken: bool) -> tuple[int, Path | None, list[str]]:
-    """Laedt eine Quelle als MP3 oder nutzt eine vorhandene Datei."""
 
     vorhandene_mp3 = finde_mp3(quelle)
     if vorhandene_mp3 and not args.erneut_laden:
@@ -808,13 +765,6 @@ def clippe_mp3(
     status_text: str = "",
     max_clips: int | None = None,
 ) -> tuple[int, list[str]]:
-    """Schneidet eine MP3 direkt in 30s-WAV-Clips.
-
-    Frueher wurde dafuer ein zweiter Python-Prozess gestartet. Bei einigen
-    langen MP3s kam es dabei zu nativen Abbruechen mit Returncode -11. Diese
-    direkte Variante nutzt pro Segment nur ffmpeg und schreibt danach die
-    Manifeste selbst; dadurch bleibt der lokale Lauf stabiler und lesbarer.
-    """
 
     dataset_name = dataset_name_fuer_quelle(quelle)
     log_path = log_dir / f"clippen_{quelle.genre_key}_{quelle.rang}_{quelle.video_id or slug(mp3_path.stem)}.log"
@@ -854,6 +804,8 @@ def clippe_mp3(
                 starts.append(round(current, 3))
                 current += args.clip_hop_sec
             if clip_limit > 0 and len(starts) > clip_limit:
+
+
                 if clip_limit == 1:
                     starts = [starts[0]]
                 else:
@@ -966,7 +918,6 @@ def baue_lora_dataset(
     trocken: bool,
     status_text: str = "Dataset",
 ) -> tuple[int, list[str]]:
-    """Baut das LoRA-Zielmanifest neu."""
 
     command = [
         str(PYTHON),
@@ -986,7 +937,6 @@ def baue_lora_dataset(
 
 
 def validiere_lora_dataset(log_dir: Path, trocken: bool) -> tuple[int, list[str]]:
-    """Prueft die neu geschriebenen Manifeste."""
 
     command = [
         str(PYTHON),
@@ -1000,12 +950,6 @@ def validiere_lora_dataset(log_dir: Path, trocken: bool) -> tuple[int, list[str]
 
 
 def repariere_import_manifeste(trocken: bool) -> dict[str, Any]:
-    """Schreibt fehlende Import-Manifeste aus vorhandenen Clip-JSONs neu.
-
-    Wenn ein Clip-Prozess abstuerzt, koennen bereits WAVs und Sidecar-JSONs
-    vorhanden sein, aber die abschliessenden train/valid/test-Manifeste fehlen.
-    Diese Funktion rettet solche Clips fuer den naechsten Dataset-Bau.
-    """
 
     repariert: list[dict[str, Any]] = []
     if not IMPORT_DATASET.exists():
@@ -1067,7 +1011,6 @@ def repariere_import_manifeste(trocken: bool) -> dict[str, Any]:
 
 
 def lade_summary() -> dict[str, Any]:
-    """Liest den aktuellen Zielstand des LoRA-Datasets."""
 
     path = ZIEL_DATASET / "dataset_summary.json"
     if path.exists():
@@ -1079,7 +1022,6 @@ def lade_summary() -> dict[str, Any]:
 
 
 def genre_stand(summary: dict[str, Any], genre_key: str) -> str:
-    """Gibt den aktuellen Stand eines Genres als `aktuell/ziel` aus."""
 
     target = int(summary.get("target_per_genre") or 1000) if summary else 1000
     selected = summary.get("selected_by_genre") or summary.get("available_by_genre") or {}
@@ -1088,7 +1030,6 @@ def genre_stand(summary: dict[str, Any], genre_key: str) -> str:
 
 
 def genre_voll(summary: dict[str, Any], genre_key: str) -> bool:
-    """Prueft, ob das Genre sein Ziel bereits erreicht hat."""
 
     target = int(summary.get("target_per_genre") or 1000) if summary else 1000
     selected = summary.get("selected_by_genre") or summary.get("available_by_genre") or {}
@@ -1097,7 +1038,6 @@ def genre_voll(summary: dict[str, Any], genre_key: str) -> bool:
 
 
 def fehlende_clips_im_genre(summary: dict[str, Any], genre_key: str) -> int:
-    """Berechnet, wie viele Clips fuer ein Genre noch gebraucht werden."""
 
     target = int(summary.get("target_per_genre") or 1000) if summary else 1000
     selected = summary.get("selected_by_genre") or summary.get("available_by_genre") or {}
@@ -1106,7 +1046,6 @@ def fehlende_clips_im_genre(summary: dict[str, Any], genre_key: str) -> int:
 
 
 def clip_limit_fuer_quelle(args: argparse.Namespace, summary: dict[str, Any], genre_key: str) -> int:
-    """Schneidet nur so viele Clips, wie fuer den aktuellen Stand sinnvoll sind."""
 
     missing = fehlende_clips_im_genre(summary, genre_key)
     if missing <= 0:
@@ -1116,7 +1055,6 @@ def clip_limit_fuer_quelle(args: argparse.Namespace, summary: dict[str, Any], ge
 
 
 def drucke_genre_stand(summary: dict[str, Any]) -> None:
-    """Zeigt den finalen Stand pro Genre kompakt an."""
 
     if not summary:
         return
@@ -1126,7 +1064,6 @@ def drucke_genre_stand(summary: dict[str, Any]) -> None:
 
 
 def ist_training_ready(summary: dict[str, Any]) -> bool:
-    """Prueft, ob der Qualitaetsdatensatz vollstaendig trainingsbereit ist."""
 
     return bool(summary.get("training_ready")) and int(summary.get("selected_total") or 0) >= int(
         summary.get("target_total") or 5000
@@ -1134,7 +1071,6 @@ def ist_training_ready(summary: dict[str, Any]) -> bool:
 
 
 def schreibe_reports(run_name: str, report: dict[str, Any], rows: list[dict[str, Any]]) -> None:
-    """Schreibt JSON- und CSV-Reports zum Lauf."""
 
     REPORT_ORDNER.mkdir(parents=True, exist_ok=True)
     json_path = REPORT_ORDNER / f"{run_name}.json"
@@ -1161,7 +1097,6 @@ def schreibe_reports(run_name: str, report: dict[str, Any], rows: list[dict[str,
 
 
 def schreibe_quellen_plan(run_name: str, quellen: list[Quelle], summary: dict[str, Any]) -> tuple[Path, Path]:
-    """Schreibt vor dem Clippen eine pruefbare MP3-Quellenliste."""
 
     REPORT_ORDNER.mkdir(parents=True, exist_ok=True)
     csv_path = REPORT_ORDNER / f"quellen_plan_{run_name}.csv"
@@ -1219,12 +1154,12 @@ def schreibe_quellen_plan(run_name: str, quellen: list[Quelle], summary: dict[st
 
 
 def main() -> int:
-    """Startet die Vorbereitungspipeline."""
 
     args = parse_args()
     run_name = args.run_name or f"clips_training_vorbereiten_{jetzt_name()}"
     trocken = not args.ausfuehren
     log_dir = REPORT_ORDNER / "logs" / run_name
+
 
     vorab_reparatur = {"reparierte_datasets": 0, "reparierte_rows": 0, "details": []}
     vorab_dataset_code: int | str = ""

@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Fuehrt eine generierte Audio mit einem generierten Video zu einem
-Endprodukt zusammen.
-
-Die LTX-Video-Clips sind stumm und nur wenige Sekunden lang, die Audios
-dauern oft mehrere Minuten. Deshalb loopt ffmpeg das Video endlos, bis die
-Audio zu Ende ist (``-shortest`` schneidet dann am Audioende ab).
-"""
 
 from __future__ import annotations
 

@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AudioLines,
@@ -7,8 +8,10 @@ import {
   Library,
   Link as LinkIcon,
   ListChecks,
+  Radar,
   Waves,
 } from "lucide-react";
+import { api } from "../lib/api";
 
 type NavItem = {
   to:
@@ -16,6 +19,7 @@ type NavItem = {
     | "/studio/generate"
     | "/studio/video"
     | "/studio/library"
+    | "/studio/evaluation"
     | "/studio/jobs"
     | "/studio/model";
   label: string;
@@ -27,13 +31,21 @@ const nav: NavItem[] = [
   { to: "/studio/import", label: "Quellen", icon: LinkIcon, exact: true },
   { to: "/studio/generate", label: "Audio", icon: Waves },
   { to: "/studio/video", label: "Video", icon: Film },
-  { to: "/studio/library", label: "Ausgaben", icon: Library },
+  { to: "/studio/library", label: "Bibliothek", icon: Library },
+  { to: "/studio/evaluation", label: "Bewertung", icon: Radar },
   { to: "/studio/jobs", label: "Läufe", icon: ListChecks },
   { to: "/studio/model", label: "Steuerung", icon: Cpu },
 ];
 
+function useActiveJobCount() {
+  const jobsQuery = useQuery({ queryKey: ["jobs"], queryFn: api.jobs, refetchInterval: 3000 });
+  const jobs = jobsQuery.data ?? [];
+  return jobs.filter((j) => j.status === "running" || j.status === "queued").length;
+}
+
 export function StudioSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const activeJobCount = useActiveJobCount();
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r hairline bg-surface/30 px-4 py-6 md:flex">
       <Link to="/studio/import" className="mono flex items-center gap-2 px-1 text-sm font-semibold">
@@ -52,6 +64,7 @@ export function StudioSidebar() {
         {nav.map((item) => {
           const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
           const Icon = item.icon;
+          const showBadge = item.to === "/studio/jobs" && activeJobCount > 0;
           return (
             <Link
               key={item.to}
@@ -64,7 +77,12 @@ export function StudioSidebar() {
               ].join(" ")}
             >
               <Icon className="h-4 w-4" />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {showBadge && (
+                <span className="mono inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-warm px-1.5 text-[11px] font-semibold text-warm-foreground">
+                  {activeJobCount}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -89,6 +107,7 @@ export function StudioSidebar() {
 
 export function StudioMobileNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const activeJobCount = useActiveJobCount();
   return (
     <div className="sticky top-0 z-30 flex items-center gap-1 overflow-x-auto border-b hairline bg-background/95 px-3 py-2 backdrop-blur md:hidden">
       <Link
@@ -100,6 +119,7 @@ export function StudioMobileNav() {
       {nav.map((item) => {
         const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
         const Icon = item.icon;
+        const showBadge = item.to === "/studio/jobs" && activeJobCount > 0;
         return (
           <Link
             key={item.to}
@@ -111,6 +131,11 @@ export function StudioMobileNav() {
           >
             <Icon className="h-3.5 w-3.5" />
             <span>{item.label}</span>
+            {showBadge && (
+              <span className="mono inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warm px-1 text-[10px] font-semibold text-warm-foreground">
+                {activeJobCount}
+              </span>
+            )}
           </Link>
         );
       })}

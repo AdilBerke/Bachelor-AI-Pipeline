@@ -7,9 +7,8 @@ export interface AppSettings {
   defaultProfile: PromptProfile;
   defaultDurationMin: number;
   defaultFormat: OutputFormat;
-  defaultSegmentSec: 30 | 60 | 90 | 120;
+  defaultSegmentSec: number;
   defaultCrossfadeSec: number;
-  autoNormalize: boolean;
   enableMp3: boolean;
 }
 
@@ -31,7 +30,6 @@ const DEFAULTS: AppSettings = {
   defaultFormat: "wav_mp3",
   defaultSegmentSec: 30,
   defaultCrossfadeSec: 3,
-  autoNormalize: true,
   enableMp3: true,
 };
 

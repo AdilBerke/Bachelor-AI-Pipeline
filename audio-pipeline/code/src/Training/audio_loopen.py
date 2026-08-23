@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""Musikalisch passende Loops aus kurzen MusicGen-Audios erzeugen.
-
-MusicGen erzeugt in diesem Projekt 30-Sekunden-Clips. Dieses Modul veraendert
-das Modell nicht, sondern verlaengert einen fertigen Clip in der
-Nachbearbeitung. Dafuer werden moegliche Taktgrenzen gesucht und technisch
-bewertet. Der beste Ausschnitt wird anschliessend mit einem kurzen,
-lautstaerkekonstanten Crossfade wiederholt.
-"""
 
 from __future__ import annotations
 
@@ -24,7 +16,6 @@ EPS = 1e-12
 
 @dataclass(frozen=True)
 class LoopAnalyse:
-    """Dokumentiert, warum eine bestimmte Loop-Grenze gewaehlt wurde."""
 
     methode: str
     bpm: Optional[float]
@@ -49,7 +40,6 @@ class LoopAnalyse:
     tempo_factors: str = "1.0000"
 
     def als_dict(self) -> dict[str, Any]:
-        """Konvertiert die Analyse fuer CSV- und JSON-Reports."""
 
         return asdict(self)
 
@@ -63,7 +53,6 @@ def _db(value: float) -> float:
 
 
 def _spektralanteile(audio: np.ndarray, sample_rate: int) -> tuple[float, float]:
-    """Berechnet Bass- und Hoehenanteil eines kurzen Audiobereichs."""
 
     if len(audio) < 32:
         return 0.0, 0.0
@@ -78,7 +67,6 @@ def _spektralanteile(audio: np.ndarray, sample_rate: int) -> tuple[float, float]
 
 
 def _energieverlauf(audio: np.ndarray, teile: int = 24) -> np.ndarray:
-    """Verdichtet einen Audiobereich zu einem normierten Energieverlauf."""
 
     if len(audio) == 0:
         return np.zeros(teile, dtype=np.float32)
@@ -104,7 +92,6 @@ def _korrelation(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def _aktive_grenzen(audio: np.ndarray, sample_rate: int) -> tuple[int, int]:
-    """Blendet fast stille Intros und Outros aus der Loop-Suche aus."""
 
     fenster = max(1, int(round(0.25 * sample_rate)))
     pegel: list[float] = []
@@ -136,11 +123,6 @@ def _tempo_und_beats(
     sample_rate: int,
     ziel_bpm: float,
 ) -> tuple[Optional[float], np.ndarray]:
-    """Schaetzt Tempo und Beat-Positionen mit librosa.
-
-    Falls librosa auf einem anderen Rechner nicht verfuegbar ist, bleibt die
-    Loop-Funktion nutzbar und faellt auf eine zeitbasierte Suche zurueck.
-    """
 
     try:
         import librosa
@@ -156,6 +138,7 @@ def _tempo_und_beats(
         beats = np.asarray(beat_times, dtype=np.float64)
     except Exception:
         return None, np.zeros(0, dtype=np.float64)
+
 
     while tempo > ziel_bpm * 1.45 and len(beats) >= 4:
         tempo /= 2.0
@@ -197,6 +180,7 @@ def _naht_metriken(
     high_jump = abs(before_high - after_high)
     correlation = _korrelation(_energieverlauf(before), _energieverlauf(after))
 
+
     score = (
         loudness_jump * 0.75
         + peak_jump * 0.25
@@ -221,7 +205,6 @@ def _zeitkandidaten(
     max_loop_sec: float,
     suchfenster_sec: float,
 ) -> list[tuple[float, float, str]]:
-    """Fallback-Kandidaten, wenn kein stabiles Beat-Raster messbar ist."""
 
     candidates: list[tuple[float, float, str]] = []
     start_limit = min(active_end_sec - min_loop_sec, active_start_sec + suchfenster_sec)
@@ -246,7 +229,6 @@ def analysiere_loop(
     suchfenster_sec: float = 7.0,
     crossfade_sec: float = 0.0,
 ) -> LoopAnalyse:
-    """Findet eine taktnahe, technisch moeglichst unauffaellige Loop-Naht."""
 
     audio = np.asarray(audio, dtype=np.float32).reshape(-1)
     duration_sec = len(audio) / float(sample_rate)
@@ -303,6 +285,8 @@ def analysiere_loop(
         start_frame = max(0, min(len(audio) - 1, int(round(start_sec * sample_rate))))
         end_frame = max(start_frame + 1, min(len(audio), int(round(end_sec * sample_rate))))
         metrics = _naht_metriken(audio, start_frame, end_frame, fenster_frames, sample_rate)
+
+
         laengen_malus = max(0.0, max_loop_sec - (end_sec - start_sec)) * 0.08
         score = float(metrics["score"] + laengen_malus)
         if best is None or score < best[4]:
@@ -342,7 +326,6 @@ def analysiere_loop(
 
 
 def _tempo_strecken(audio: np.ndarray, faktor: float, sample_rate: int) -> np.ndarray:
-    """Veraendert das Tempo mit FFmpeg, ohne die Tonhoehe zu verschieben."""
 
     if abs(faktor - 1.0) < 0.0005:
         return audio.astype(np.float32, copy=True)
@@ -391,11 +374,11 @@ def _tempo_faktor_fuer_phase(
     variation_percent: float,
     erste_richtung: int,
 ) -> float:
-    """Wechselt kontrolliert zwischen normal, langsamer und schneller."""
 
     breite = max(0.0, variation_percent) / 100.0
     if breite <= 0.0 or phase_index % 2 == 0:
         return 1.0
+
 
     ungerade_phase = (phase_index + 1) // 2
     richtung = erste_richtung if ungerade_phase % 2 == 1 else -erste_richtung
@@ -421,7 +404,6 @@ def baue_loop_block(
     seed: int = 0,
     analyse: Optional[LoopAnalyse] = None,
 ) -> tuple[np.ndarray, LoopAnalyse, int]:
-    """Verlaengert einen Clip und gibt Block, Analyse und Wiederholungen zurueck."""
 
     if ziel_dauer_sec <= 0.0:
         raise ValueError("Die Ziel-Dauer des Loop-Blocks muss groesser als 0 sein.")
@@ -444,6 +426,8 @@ def baue_loop_block(
     target_frames = int(round(ziel_dauer_sec * sample_rate))
     crossfade_frames = int(round(analyse.crossfade_sec * sample_rate))
     crossfade_frames = min(crossfade_frames, len(segment) // 2)
+
+
     reserve = int(math.ceil(len(segment) * (1.0 + max(0.0, tempo_variation_percent) / 100.0)))
     block = np.zeros(target_frames + reserve, dtype=np.float32)
     cursor = 0

@@ -155,10 +155,9 @@ export interface GenerateRequest {
   customPrompt?: string;
   targetBpm?: number;
   instruments?: string;
-  segmentDurationSec: 30 | 60 | 90 | 120;
+  segmentDurationSec?: number;
   crossfadeSec: number;
   seed?: number;
-  normalize: boolean;
   outputFormat: OutputFormat;
   adapterPath: string;
   githubPush?: boolean;
@@ -197,6 +196,18 @@ export interface AudioFile {
   metadata?: Record<string, string | number>;
   scoreRating?: AudioScoreRating;
   score_rating?: AudioScoreRating;
+}
+
+export interface VideoGalleryItem {
+  id: string;
+  scenario: string;
+  filename: string;
+  url: string;
+  type: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  round?: number;
+  step?: number;
 }
 
 export interface YoutubeMp3ImportRequest {
@@ -434,6 +445,17 @@ export const api = {
     ),
   audioDownloadUrl: (id: string, fmt: "wav" | "mp3") =>
     `${baseUrl()}${withToken(`/api/audio/${id}/download?format=${fmt}`)}`,
+  renameAudio: (id: string, name: string) =>
+    request<{ ok: boolean; title: string }>(`/api/audio/${id}/rename`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+
+  videoGallery: () =>
+    withMock(
+      () => request<VideoGalleryItem[]>("/api/video-gallery"),
+      () => [] as VideoGalleryItem[],
+    ),
 
   importYoutubeMp3: (body: YoutubeMp3ImportRequest) =>
     request<{ job_id: string; job: YoutubeMp3ImportJob }>("/api/musicgen/youtube-mp3", {
@@ -443,7 +465,6 @@ export const api = {
         genre: body.genre,
         title: body.title,
         rightsConfirmed: body.rightsConfirmed,
-        buildClips: body.buildClips,
         datasetName: body.datasetName,
         caption: body.caption,
         maxClips: body.maxClips,

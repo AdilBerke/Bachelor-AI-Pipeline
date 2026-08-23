@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Erstellt ein kleines Bewertungspaket aus echten LoRA-Trainingsclips.
-
-Die Datei generiert keine neue Musik und startet kein Training. Sie nimmt
-vorhandene 30s-WAV-Clips aus dem fertigen LoRA Dataset, waehlt pro Genre eine
-kleine, quellenverteilte Stichprobe und schreibt daraus MP3-Dateien plus eine
-Bewertungs-CSV.
-"""
 
 from __future__ import annotations
 
@@ -32,7 +25,6 @@ GENRES = ("jazz_lofi", "chillhop_lofi", "dreamy_lofi", "study_lofi", "guitar_lof
 
 
 def parse_args() -> argparse.Namespace:
-    """Liest die Optionen fuer das Trainingsclip-Review."""
 
     parser = argparse.ArgumentParser(description="Erstellt 30s-Bewertungsaudios aus echten Trainingsclips.")
     parser.add_argument("--dataset-root", default=str(STANDARD_DATASET))
@@ -62,13 +54,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def jetzt_utc() -> str:
-    """UTC-Zeitstempel fuer Reports."""
 
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def rel(path: Path) -> str:
-    """Gibt Pfade relativ zur Projektwurzel aus."""
 
     try:
         return str(path.resolve().relative_to(PROJEKTWURZEL))
@@ -77,7 +67,6 @@ def rel(path: Path) -> str:
 
 
 def slug(text: str) -> str:
-    """Erzeugt kurze Dateinamenbestandteile."""
 
     value = str(text or "").lower().strip()
     value = value.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
@@ -86,7 +75,6 @@ def slug(text: str) -> str:
 
 
 def freier_run_name(output_root: Path, wanted: str) -> str:
-    """Findet einen freien Ordnernamen."""
 
     base = wanted or "lora_review_001"
     if not (output_root / base).exists():
@@ -99,7 +87,6 @@ def freier_run_name(output_root: Path, wanted: str) -> str:
 
 
 def lese_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Liest eine Manifestdatei."""
 
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as handle:
@@ -111,7 +98,6 @@ def lese_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def lade_rows(dataset_root: Path, split: str) -> list[dict[str, Any]]:
-    """Laedt die gewuenschten Dataset-Zeilen."""
 
     splits = SPLITS if split == "alle" else (split,)
     rows: list[dict[str, Any]] = []
@@ -127,13 +113,11 @@ def lade_rows(dataset_root: Path, split: str) -> list[dict[str, Any]]:
 
 
 def genre_key(row: dict[str, Any]) -> str:
-    """Liest das Genre aus einer Manifestzeile."""
 
     return str(row.get("primary_genre") or row.get("lora_genre") or row.get("genre") or "unknown")
 
 
 def source_key(row: dict[str, Any]) -> str:
-    """Liest eine Quellenkennung, damit die Auswahl nicht aus einer Quelle kommt."""
 
     return str(
         row.get("source_video_id")
@@ -147,7 +131,6 @@ def source_key(row: dict[str, Any]) -> str:
 
 
 def waehle_clips(rows: list[dict[str, Any]], clips_pro_genre: int, seed: int) -> list[dict[str, Any]]:
-    """Waehlt pro Genre Clips aus moeglichst unterschiedlichen Quellen."""
 
     rng = random.Random(seed)
     selected: list[dict[str, Any]] = []
@@ -180,7 +163,6 @@ def waehle_clips(rows: list[dict[str, Any]], clips_pro_genre: int, seed: int) ->
 
 
 def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
-    """Schreibt eine CSV-Datei."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
@@ -190,7 +172,6 @@ def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) 
 
 
 def encode_mp3(source: Path, target: Path, bitrate: str) -> None:
-    """Wandelt einen WAV-Clip fuer die Bewertung in MP3 um."""
 
     target.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -215,7 +196,6 @@ def encode_mp3(source: Path, target: Path, bitrate: str) -> None:
 
 
 def push_audio_ordner(audio_dir: Path, run_name: str, branch: str) -> dict[str, Any]:
-    """Pusht nur die MP3-Testaudios eines Review-Laufs nach GitHub."""
 
     if not audio_dir.exists():
         return {"status": "skipped", "reason": f"audio-Ordner fehlt: {rel(audio_dir)}"}
@@ -241,7 +221,6 @@ def push_audio_ordner(audio_dir: Path, run_name: str, branch: str) -> dict[str, 
 
 
 def main() -> int:
-    """Erzeugt das Bewertungspaket."""
 
     args = parse_args()
     dataset_root = Path(args.dataset_root).expanduser().resolve()

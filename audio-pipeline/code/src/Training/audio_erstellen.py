@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Erzeugt Longform-Audio aus frisch generierten MusicGen-Abschnitten.
-
-Diese aktive Pipeline ersetzt im Standardlauf die alte Clip-Pool-Pipeline. Die alte Pipeline
-setzt vorhandene bewertete Clips zusammen. Diese Version laedt MusicGen mit dem
-besten LoRA-Checkpoint, erzeugt neue kurze Abschnitte, prueft jeden Kandidaten
-technisch und baut daraus erst danach eine lange Audio.
-"""
 
 from __future__ import annotations
 
@@ -87,7 +80,6 @@ BAD_REVIEW_WORDS = (
 
 
 def adapter_fuer_generierung_freigegeben(adapter_path: Path) -> bool:
-    """Laesst den aktuellen LoRA-Run erst nach seinem Abschluss zu."""
     if not adapter_path.is_file():
         return False
     try:
@@ -116,7 +108,6 @@ GOOD_REVIEW_WORDS = (
 
 @dataclass
 class GeplanterAbschnitt:
-    """Ein frisch zu erzeugender Abschnitt innerhalb eines Longform-Blocks."""
 
     block: int
     abschnitt: int
@@ -368,7 +359,6 @@ def resolve_rhythm_block_seconds(
     percentage: float,
     minimum_sec: float,
 ) -> float:
-    """Berechnet die Ziel-Rhythmusdauer mit prozentualem Standard."""
 
     minimum = max(1.0, float(minimum_sec))
     if requested_block_sec > 0:
@@ -387,13 +377,11 @@ def actual_seed(requested_seed: int) -> int:
 
 
 def section_seed(base_seed: int, section_index: int, attempt: int = 0) -> int:
-    """Erzeugt reproduzierbare, aber unterschiedliche Seeds pro Abschnitt."""
 
     return int((base_seed + section_index * 1009 + attempt * 37) % (2**31 - 1)) or 1
 
 
 def effective_crossfade_seconds(section_seconds: float, requested_seconds: float) -> float:
-    """Begrenzt Crossfade auf einen musikalisch sinnvollen Segmentanteil."""
 
     if requested_seconds <= 0:
         return 0.0
@@ -406,7 +394,6 @@ def estimated_assembled_duration(
     section_seconds: float,
     crossfade_seconds: float,
 ) -> float:
-    """Schaetzt die Endlaenge nach dem Zusammenbau mit Crossfades."""
 
     if section_count <= 0:
         return 0.0
@@ -419,7 +406,6 @@ def required_section_count(
     section_seconds: float,
     crossfade_seconds: float,
 ) -> int:
-    """Berechnet, wie viele Clips fuer die Zielzeit trotz Crossfade noetig sind."""
 
     if target_duration_sec <= 0:
         return 0
@@ -437,7 +423,6 @@ def write_json(path: Path, payload: Dict[str, Any]) -> None:
 
 
 def read_json_optional(path: Path) -> Dict[str, Any]:
-    """Liest JSON, falls vorhanden; bei defekten Dateien leer weiterarbeiten."""
 
     if not path.exists():
         return {}
@@ -448,7 +433,6 @@ def read_json_optional(path: Path) -> Dict[str, Any]:
 
 
 def cleanup_cuda_cache() -> None:
-    """Raeumt nach Kandidaten auf, um lange Generierungslaeufe stabiler zu halten."""
 
     gc.collect()
     try:
@@ -474,7 +458,6 @@ def write_progress(
     explicit_percent: Optional[float] = None,
     candidate_progress_percent: Optional[float] = None,
 ) -> None:
-    """Schreibt den aktuellen Longform-Fortschritt fuer Terminal und Website."""
 
     if explicit_percent is None:
         percent = 0.0
@@ -506,12 +489,6 @@ def write_progress(
 
 
 def load_lora_helpers() -> types.ModuleType:
-    """Laedt die vorhandenen LoRA-Hilfsfunktionen aus `musicgen_steuerung.py`.
-
-    Die kompakte Projektstruktur buendelt Training und LoRA-Hilfen aktuell in
-    einer Datei. Damit hier keine zweite grosse LoRA-Implementierung entsteht,
-    wird das vorhandene Hilfsmodul dynamisch wiederverwendet.
-    """
 
     module_name = "lora_utils"
     if module_name in sys.modules:
@@ -526,14 +503,6 @@ def load_lora_helpers() -> types.ModuleType:
 
 
 def load_musicgen_stabil(model_source: str, device: str) -> Any:
-    """Laedt MusicGen mit deaktivierter memory_efficient-Attention.
-
-    Die lokal installierte xFormers-Version passt nicht zur aktuellen
-    Torch/CUDA-Version. AudioCraft importiert xFormers trotzdem und kann bei
-    `memory_efficient=True` nativ abstuerzen. Diese Ladefunktion nutzt dieselben
-    Checkpoints, setzt aber nur fuer den laufenden Prozess
-    `transformer_lm.memory_efficient=False`.
-    """
 
     from omegaconf import OmegaConf
 
@@ -566,15 +535,9 @@ def load_musicgen_stabil(model_source: str, device: str) -> Any:
 
 
 def load_lora_checkpoint_kompatibel(model: Any, adapter_path: Path, helpers: types.ModuleType, device: str) -> Dict[str, Any]:
-    """Laedt LoRA-Adapter auch bei stabiler Attention-Modulstruktur.
-
-    Ohne memory_efficient-Attention liegt das Output-Projection-Modul unter
-    `self_attn.mha.out_proj`. Aeltere Adapter wurden aber mit
-    `self_attn.out_proj` gespeichert. Die Gewichte sind kompatibel; nur der
-    Modulpfad wird beim Laden uebersetzt.
-    """
 
     import torch
+
 
     payload = torch.load(adapter_path, map_location="cpu")
     if payload.get("format") != "musicgen_lora_adapter_v1":
@@ -621,7 +584,6 @@ _LIBROSA_CHECKED = False
 
 
 def optional_librosa() -> Any:
-    """Laedt librosa nur, wenn es lokal vorhanden ist."""
 
     global _LIBROSA, _LIBROSA_CHECKED
     if _LIBROSA_CHECKED:
@@ -637,7 +599,6 @@ def optional_librosa() -> Any:
 
 
 def estimate_bpm(audio: np.ndarray, target_bpm: float) -> tuple[Optional[float], str]:
-    """Schaetzt den BPM-Wert vorsichtig und gibt auch die Methode zurueck."""
 
     if len(audio) < SAMPLE_RATE * 8 or rms(audio) <= EPS:
         return None, "unavailable"
@@ -660,7 +621,6 @@ def estimate_bpm(audio: np.ndarray, target_bpm: float) -> tuple[Optional[float],
 
 
 def normalize_bpm_to_target(value: float, target_bpm: float) -> float:
-    """Korrigiert einfache Half-/Double-Time-Schaetzungen Richtung Ziel-BPM."""
 
     candidates = [value]
     current = value
@@ -675,7 +635,6 @@ def normalize_bpm_to_target(value: float, target_bpm: float) -> float:
 
 
 def estimate_bpm_from_rms_onsets(audio: np.ndarray, target_bpm: float) -> Optional[float]:
-    """Einfache BPM-Schaetzung ueber RMS-Onsets und Autokorrelation."""
 
     frame = 2048
     hop = 512
@@ -706,6 +665,8 @@ def estimate_bpm_from_rms_onsets(audio: np.ndarray, target_bpm: float) -> Option
         left = onset[:-lag]
         right = onset[lag:]
         score = float(np.dot(left, right)) / (float(np.linalg.norm(left) * np.linalg.norm(right)) + EPS)
+
+
         proximity = max(0.75, 1.0 - abs(float(bpm) - target_bpm) / max(target_bpm, EPS) * 0.2)
         score *= proximity
         if score > best_score:
@@ -773,13 +734,6 @@ def export_mp3(wav_path: Path, mp3_path: Path) -> None:
 
 
 def apply_post_eq(wav_path: Path) -> None:
-    """Wendet sanfte EQ-Kette auf die fertige Longform-Audio an.
-
-    Reduziert Bass und den Shaker-/Rauschbereich deutlich und begrenzt den
-    Peak danach per Soft-Limiter. Behebt damit
-    die haeufigsten Kritikpunkte aus den menschlichen Bewertungen, die
-    MusicGen per Prompt allein nicht zuverlaessig loesen kann.
-    """
     tmp = wav_path.with_suffix(".eq_tmp.wav")
     try:
         subprocess.run(
@@ -848,14 +802,6 @@ def melody_reference_from_previous(
     duration_sec: float,
     reference_sec: float,
 ) -> Any:
-    """Baut eine Melody-Referenz aus dem Ende des vorherigen Clips.
-
-    MusicGen Melody kann mit `generate_with_chroma` eine harmonische Kontur
-    bekommen. Fuer weichere Longform-Uebergaenge legen wir die letzten Sekunden
-    des vorherigen Clips an den Anfang der Referenzspur. Der Rest bleibt leise,
-    damit MusicGen nur den Einstieg an das vorherige Ende anlehnt und danach
-    wieder frei variieren kann.
-    """
 
     import torch
 
@@ -879,12 +825,6 @@ _GENRE_MELODIE_POOL_CACHE: Dict[str, Dict[str, List[Path]]] = {}
 
 
 def genre_melodie_pool(dataset_root: Path) -> Dict[str, List[Path]]:
-    """Gruppiert echte Trainingsclips nach Genre, fuer Melody-Conditioning.
-
-    Wird pro Prozess einmal aus dem Trainingsdataset gebaut (dieselbe Quelle
-    wie der MP3-Referenzvergleich) und danach zwischengespeichert, damit
-    nicht bei jedem Kandidaten neu durchs Manifest gelesen wird.
-    """
 
     cache_key = str(dataset_root)
     cached = _GENRE_MELODIE_POOL_CACHE.get(cache_key)
@@ -912,13 +852,6 @@ def melody_reference_from_genre(
     duration_sec: float,
     dataset_root: Path,
 ) -> Any:
-    """Baut eine Melody-Referenz aus einem echten Clip des Zielgenres.
-
-    Anders als `melody_reference_from_previous` (nur Anfangs-Anker fuer
-    weiche Uebergaenge) liefert diese Funktion die volle Referenzspur, damit
-    MusicGen ueber den gesamten Abschnitt einer echten harmonischen Kontur
-    des Zielgenres folgen kann statt nur dem Text-Prompt.
-    """
 
     import torch
 
@@ -950,7 +883,6 @@ def melody_reference_from_genre(
 
 
 def soften_clip_edges(audio: np.ndarray, fade_seconds: float) -> np.ndarray:
-    """Macht Clip-Anfang und -Ende leicht weicher fuer bessere Crossfades."""
 
     fade_frames = int(round(max(0.0, fade_seconds) * SAMPLE_RATE))
     fade_frames = min(fade_frames, len(audio) // 3)
@@ -986,7 +918,6 @@ def build_looped_block(
     tempo_start_phase: int,
     seed: int,
 ) -> tuple[np.ndarray, LoopAnalyse, int]:
-    """Verlaengert einen guten Clip ueber automatisch gefundene Taktgrenzen."""
 
     return baue_loop_block(
         audio,
@@ -1077,6 +1008,7 @@ def audio_metrics(
             bpm_status = "WARN"
         else:
             bpm_status = "PROBLEM"
+
 
     reasons: List[str] = []
     warnings_list: List[str] = []
@@ -1180,6 +1112,8 @@ def audio_metrics(
 def spectral_ratios(audio: np.ndarray) -> tuple[float, float, float]:
     if len(audio) < SAMPLE_RATE:
         return 0.0, 0.0, 0.0
+
+
     maximum_frames = SAMPLE_RATE * 20
     if len(audio) <= maximum_frames:
         samples = [audio]
@@ -1207,12 +1141,6 @@ def spectral_ratios(audio: np.ndarray) -> tuple[float, float, float]:
 
 
 def spectral_band_ratios(audio: np.ndarray) -> Dict[str, float]:
-    """Misst Bass, Mitten, Snare-/Shaker-Bereiche und tonale Naehe.
-
-    Die Werte sind bewusst einfache, reproduzierbare Signalmerkmale. Sie
-    ersetzen keine harmonische Analyse, liefern aber eine stabile lokale
-    Naeherung fuer die Uebergangsauswahl ohne zusaetzliche Modell-Downloads.
-    """
 
     if len(audio) < SAMPLE_RATE // 4:
         return {
@@ -1247,7 +1175,6 @@ def spectral_band_ratios(audio: np.ndarray) -> Dict[str, float]:
 
 
 def spectral_fingerprint(audio: np.ndarray) -> List[float]:
-    """Erzeugt einen kleinen spektralen Fingerabdruck fuer Harmonie-/Timbre-Naehe."""
 
     if len(audio) < SAMPLE_RATE // 4:
         return [0.0] * 9
@@ -1285,7 +1212,6 @@ def cosine_similarity(left: Iterable[float], right: Iterable[float]) -> float:
 
 
 def audio_movement_metrics(audio: np.ndarray, window_seconds: float = 3.0) -> Dict[str, Any]:
-    """Misst kleine Binnenbewegungen, ohne ruhige Lofi-Clips zu bestrafen."""
 
     window_frames = int(round(max(1.0, window_seconds) * SAMPLE_RATE))
     if len(audio) < window_frames * 2:
@@ -1344,7 +1270,6 @@ def audio_movement_metrics(audio: np.ndarray, window_seconds: float = 3.0) -> Di
 
 
 def energieverlauf(audio: np.ndarray, teile: int = 24) -> np.ndarray:
-    """Verdichtet einen Uebergangsbereich zu einem normierten Energieverlauf."""
 
     if len(audio) == 0:
         return np.zeros(teile, dtype=np.float32)
@@ -1370,7 +1295,6 @@ def korrelation(left: np.ndarray, right: np.ndarray) -> float:
 
 
 def click_risiko(audio: np.ndarray) -> float:
-    """Schaetzt Impuls-/Klickrisiko an einem kurzen Cliprand."""
 
     if len(audio) < 8:
         return 0.0
@@ -1382,7 +1306,6 @@ def click_risiko(audio: np.ndarray) -> float:
 
 
 def aktive_randquote(audio: np.ndarray, min_db: float = -52.0) -> float:
-    """Anteil aktiver 250-ms-Fenster an einem Randbereich."""
 
     frames = max(1, int(round(0.25 * SAMPLE_RATE)))
     werte: List[bool] = []
@@ -1397,13 +1320,11 @@ _KANTEN_PROFIL_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 def public_profile_values(profile: Dict[str, Any]) -> Dict[str, Any]:
-    """Entfernt interne Vektoren, bevor Profile in CSV/JSON-Reports landen."""
 
     return {key: value for key, value in profile.items() if not key.startswith("_")}
 
 
 def optional_float(value: Any) -> Optional[float]:
-    """Konvertiert Report-Werte vorsichtig in float."""
 
     if value in ("", None):
         return None
@@ -1417,7 +1338,6 @@ def optional_float(value: Any) -> Optional[float]:
 
 
 def project_path(value: Any) -> Path:
-    """Erzeugt aus Report-Pfaden einen sicher lesbaren Projektpfad."""
 
     path = Path(str(value))
     if path.is_absolute():
@@ -1437,7 +1357,6 @@ def summarize_optional(values: Iterable[Any]) -> Dict[str, Optional[float]]:
 
 
 def referenz_genre_key(value: Any) -> str:
-    """Vereinheitlicht Genre-Namen fuer den MP3-Referenzvergleich."""
 
     text = str(value or "").strip().lower().replace("-", " ").replace("_", " ")
     text = " ".join(text.split())
@@ -1455,7 +1374,6 @@ def referenz_genre_key(value: Any) -> str:
 
 
 def read_jsonl_rows(path: Path) -> List[Dict[str, Any]]:
-    """Liest Manifestzeilen aus dem Trainingsdataset."""
 
     rows: List[Dict[str, Any]] = []
     if not path.is_file():
@@ -1474,7 +1392,6 @@ def read_jsonl_rows(path: Path) -> List[Dict[str, Any]]:
 
 
 def resolve_dataset_audio_path(value: Any) -> Path:
-    """Loest Audio-Pfade aus Dataset-Manifesten auf."""
 
     path = Path(str(value or "")).expanduser()
     if not path.is_absolute():
@@ -1483,7 +1400,6 @@ def resolve_dataset_audio_path(value: Any) -> Path:
 
 
 def median_dict(rows: List[Dict[str, Any]], fields: Iterable[str]) -> Dict[str, Any]:
-    """Berechnet Medianwerte fuer ein Referenzprofil."""
 
     result: Dict[str, Any] = {"anzahl": len(rows)}
     for field in fields:
@@ -1494,12 +1410,6 @@ def median_dict(rows: List[Dict[str, Any]], fields: Iterable[str]) -> Dict[str, 
 
 
 def collect_reference_rows(args: argparse.Namespace, run_dir: Path) -> tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
-    """Baut technische MP3-Referenzprofile pro Genre.
-
-    Die Profile stammen aus den geprueften Trainingsdaten. Dadurch vergleichen
-    wir neue MusicGen-Kandidaten mit genau dem Material, das als guter Standard
-    fuer LoRA dient: echte MP3-Clips, 30 Sekunden, genrebalanciert.
-    """
 
     report: Dict[str, Any] = {
         "enabled": bool(getattr(args, "mp3_referenz_pruefung_aktiv", True)),
@@ -1645,7 +1555,6 @@ def score_mp3_referenz(
     profiles: Dict[str, Dict[str, Any]],
     score_limit: float,
 ) -> Dict[str, Any]:
-    """Bewertet, wie nah ein Kandidat technisch am MP3-Referenzprofil liegt."""
 
     if not profiles:
         return {
@@ -1769,19 +1678,11 @@ def score_mp3_referenz(
 
 
 def order_accepted_clips(accepted: List[Dict[str, Any]], target_bpm: float) -> List[Dict[str, Any]]:
-    """Behaelt die geplante Abschnittsreihenfolge fuer stabile Uebergaenge."""
 
     return sorted(accepted, key=lambda row: int(optional_float(row.get("abschnitt")) or 0))
 
 
 def score_kandidat(metrics: Dict[str, Any]) -> float:
-    """Bewertet einen Kandidaten; niedrigerer Score = bessere Qualitaet.
-
-    Die Gewichtung basiert auf den haeufigsten Kritikpunkten aus den
-    menschlichen Bewertungen (13 Durchgaenge): Bass-Dominanz und Shaker/
-    Hoehen-Intensitaet sind die meistgenannten Probleme und werden
-    entsprechend stark bewertet.
-    """
     bass = optional_float(metrics.get("bass_ratio")) or 0.5
     snare = optional_float(metrics.get("snare_ratio")) or 0.0
     high = optional_float(metrics.get("high_ratio")) or 0.0
@@ -1819,7 +1720,6 @@ def score_block_konsistenz(
     metrics: Dict[str, Any],
     args: argparse.Namespace,
 ) -> Dict[str, Any]:
-    """Bewertet, ob ein Kandidat musikalisch zum aktuellen Block passt."""
 
     prompt_lower = candidate_prompt.lower()
     basis_lower = section.prompt.lower()
@@ -1906,7 +1806,6 @@ def score_block_konsistenz(
 
 
 def kanten_profil(path: Path, sekunden: float = 4.0) -> Dict[str, Any]:
-    """Misst Anfang und Ende eines Clips fuer den Uebergangsvergleich."""
 
     resolved = path.resolve()
     try:
@@ -1965,7 +1864,6 @@ def score_uebergang(
     kandidat_metrics: Dict[str, Any],
     bpm_toleranz: float,
 ) -> Dict[str, Any]:
-    """Bewertet, wie gut ein neuer Kandidat zum vorherigen Clip passt."""
 
     kandidat_profil = kanten_profil(kandidat_path)
     if vorheriger_clip is None:
@@ -2028,27 +1926,19 @@ def score_uebergang(
 
     gruende: List[str] = []
     harte_gruende: List[str] = []
+
+
     if not bpm_known:
-        gruende.append("BPM nicht vergleichbar")
         bpm_status = "UNBEKANNT"
     elif bpm_diff > bpm_toleranz * 1.6:
-        reason = "deutlicher BPM-Sprung"
-        gruende.append(reason)
-        harte_gruende.append(reason)
         bpm_status = "PROBLEM"
     elif bpm_diff > bpm_toleranz:
-        gruende.append("BPM leicht unterschiedlich")
         bpm_status = "PRUEFEN"
     else:
         bpm_status = "OK"
     for condition, reason, hard in (
         (rms_jump > 4.5, "Lautheitssprung", rms_jump > 7.5),
         (energy_jump > 6.0, "Energiesprung", energy_jump > 9.0),
-        (bass_jump > 0.14, "Basssprung", bass_jump > 0.22),
-        (snare_jump > 0.12, "Snare-/Praesenzsprung", snare_jump > 0.18),
-        (high_jump > 0.08, "Hoehen-/Shakersprung", high_jump > 0.14),
-        (harmonic_distance > 0.35, "harmonische/timbrale Distanz", harmonic_distance > 0.55),
-        (rhythm_correlation < 0.05, "Rhythmus-/Energieverlauf passt schlecht", rhythm_correlation < -0.25),
         (click_risk > 10.0, "Klickrisiko am Uebergang", click_risk > 18.0),
         (boundary_jump > 0.55, "Wellenform-Sprung an Clipkante", boundary_jump > 0.80),
         (kandidat_profil["start_rms_db"] < -42.0, "leiser Einstieg", True),
@@ -2071,14 +1961,8 @@ def score_uebergang(
                 harte_gruende.append(reason)
 
     raw_score = (
-        bpm_diff * 0.65
-        + rms_jump * 0.42
+        rms_jump * 0.42
         + energy_jump * 0.25
-        + bass_jump * 10.0
-        + snare_jump * 9.0
-        + high_jump * 11.0
-        + harmonic_distance * 7.0
-        + max(0.0, 0.25 - rhythm_correlation) * 3.0
         + max(0.0, start_impulse - 3.0) * 0.30
         + max(0.0, start_silence - 3.0) * 0.40
         + max(0.0, previous_end_impulse - 3.0) * 0.25
@@ -2087,9 +1971,6 @@ def score_uebergang(
         + max(0.0, candidate_end_cut - 3.0) * 0.45
         + max(0.0, click_risk - 10.0) * 0.25
         + boundary_jump * 4.0
-        + (2.0 if not bpm_known else 0.0)
-        + max(0.0, bpm_diff - bpm_toleranz) * 1.25
-        + max(0.0, bpm_diff - bpm_toleranz * 1.6) * 1.75
         + (2.0 if kandidat_profil["start_rms_db"] < -42.0 else 0.0)
         + (2.5 if kandidat_profil["end_rms_db"] < -35.0 or kandidat_profil["very_end_rms_db"] < -38.0 else 0.0)
         + (1.8 if kandidat_profil["start_rms_db"] > -15.0 or kandidat_profil["start_peak_db"] > -2.5 else 0.0)
@@ -2154,7 +2035,6 @@ def score_uebergang(
 
 
 def split_prompt_terms(text: str) -> List[str]:
-    """Zerlegt frei eingegebene Instrumente/Stimmung in kurze Prompt-Bausteine."""
 
     items = [item.strip() for item in text.replace(";", ",").split(",")]
     return [item for item in items if item]
@@ -2205,7 +2085,6 @@ def clean_generation_prompt(prompt: str) -> str:
 
 
 def harmony_prompt_terms(items: List[str], *, guitar_only: bool = False) -> List[str]:
-    """Filtert Begleit-/Mix-Begriffe aus der Hauptinstrument-Auswahl."""
 
     blocked = (
         "bass",
@@ -2234,7 +2113,6 @@ def harmony_prompt_terms(items: List[str], *, guitar_only: bool = False) -> List
 
 
 def lofi_genre_label(genre: str) -> str:
-    """Haelt jede Genre-Eingabe im Lofi-Rahmen."""
 
     cleaned = (genre or "Lofi").strip()
     lowered = cleaned.lower().replace("-", "")
@@ -2244,13 +2122,6 @@ def lofi_genre_label(genre: str) -> str:
 
 
 def genre_prompt_profile(genre: str) -> Dict[str, List[str]]:
-    """Gibt pro Zielgenre engere Prompt-Bausteine vor.
-
-    Die Longform-Generierung soll nicht nur technisch gute Clips erzeugen,
-    sondern im gleichen Zielstil bleiben wie die positiv bewerteten
-    LoRA-/Trainingsbeispiele. Darum sind die Genre-Profile bewusst enger als
-    die frueheren allgemeinen Lofi-Prompts.
-    """
 
     lowered = (genre or "").lower()
     if "jazz" in lowered:
@@ -2421,7 +2292,6 @@ def genre_prompt_profile(genre: str) -> Dict[str, List[str]]:
 
 
 def optional_quality_helpers_report() -> Dict[str, Any]:
-    """Dokumentiert lokal vorhandene Hilfsmodelle und ihre aktive Rolle."""
 
     return {
         "clap": {
@@ -2518,12 +2388,6 @@ def prompt_variants(
 
 
 def prompt_for_candidate(base_prompt: str, candidate_index: int) -> str:
-    """Varriert den Prompt leicht, wenn ein Abschnitt erneut versucht wird.
-
-    Unterschiedliche Seeds reichen bei MusicGen nicht immer aus. Wenn ein
-    Kandidat still oder instabil wird, bekommt der naechste Versuch eine klare
-    technische Richtung: durchgehend spielen, keine Stille, stabile Lautheit.
-    """
 
     stabilizers = [
         "",
@@ -2562,7 +2426,6 @@ def review_is_positive(note: str) -> bool:
 
 
 def discover_fallback_audio() -> List[Path]:
-    """Findet positive alte Review-Clips nur fuer den ausdruecklichen Notfall."""
 
     files: List[Path] = []
     review_root = PROJECT_ROOT / "training" / "bewertungen" / "musicgen"
@@ -2584,12 +2447,6 @@ def plan_blocks(
     rng: random.Random,
     minimum_sec: float,
 ) -> List[float]:
-    """Verteilt Rhythmusbloecke ohne einen zu kurzen Restblock.
-
-    Die Zielzeit bestimmt die ungefaehre Blockanzahl. Anschliessend wird die
-    Gesamtdauer gleichmaessig auf diese Anzahl verteilt. Dadurch entstehen bei
-    einer Stunde und fuenf Prozent exakt 20 Bloecke zu je drei Minuten.
-    """
 
     if duration_sec <= 0:
         return []
@@ -2619,13 +2476,11 @@ def plan_blocks(
 
 
 def planned_section_duration(section: GeplanterAbschnitt, fallback_seconds: float) -> float:
-    """Dauer eines musikalischen Blocks, mindestens eine Clip-Laenge."""
 
     return max(float(fallback_seconds), float(section.end_sec) - float(section.start_sec))
 
 
 def estimated_block_assembled_duration(sections: List[GeplanterAbschnitt], fallback_seconds: float, crossfade: float) -> float:
-    """Schaetzt die Laenge nach dem Zusammenbau mit Block-Crossfades."""
 
     if not sections:
         return 0.0
@@ -2637,7 +2492,6 @@ def planned_rhythm_summary(
     sections: List[GeplanterAbschnitt],
     duration_sec: float,
 ) -> Dict[str, Any]:
-    """Fasst die tatsaechlichen Rhythmusgrenzen des Plans zusammen."""
 
     block_starts: Dict[int, float] = {}
     for section in sections:
@@ -2659,7 +2513,6 @@ def planned_rhythm_summary(
 
 
 def row_block_duration(row: Dict[str, Any], fallback_seconds: float) -> float:
-    """Dauer eines akzeptierten Blocks aus Report-Zeilen rekonstruieren."""
 
     start = optional_float(row.get("start_sec"))
     end = optional_float(row.get("end_sec"))
@@ -2669,7 +2522,6 @@ def row_block_duration(row: Dict[str, Any], fallback_seconds: float) -> float:
 
 
 def nutzt_einen_clip_pro_block(args: argparse.Namespace) -> bool:
-    """Ein Planabschnitt entspricht einem ganzen Rhythmusblock."""
 
     return bool(
         getattr(args, "block_looping_aktiv", False)
@@ -2701,6 +2553,8 @@ def plan_sections(
         prompt_offset = rng.randrange(len(variants))
         block_prompt = variants[prompt_offset]
         if nutzt_einen_clip_pro_block(args):
+
+
             material_duration = block_duration + (crossfade_seconds if block_index > 1 else 0.0)
             section_index = len(sections) + 1
             sections.append(
@@ -2717,6 +2571,8 @@ def plan_sections(
             continue
         abschnitt_im_block = 0
         while cursor < block_end - 0.001:
+
+
             end = cursor + args.abschnitt_sekunden
             section_index = len(sections) + 1
             sections.append(
@@ -2775,7 +2631,6 @@ def create_extra_section(
     section_number: int,
     start_sec: float,
 ) -> GeplanterAbschnitt:
-    """Plant einen zusaetzlichen frischen Abschnitt, wenn vorherige scheitern."""
 
     variants = prompt_variants(args.genre, args.stimmung, args.instrumente, rng, args.ziel_bpm)
     rhythm_block_seconds = max(
@@ -2818,7 +2673,6 @@ def write_plan(path: Path, rows: List[GeplanterAbschnitt]) -> None:
 
 
 def read_csv_rows(path: Path) -> List[Dict[str, Any]]:
-    """Liest vorhandene CSV-Reports, falls ein Lauf fortgesetzt wird."""
 
     if not path.exists():
         return []
@@ -2832,7 +2686,6 @@ def load_existing_accepted_clips(
     args: argparse.Namespace,
     base_seed: int,
 ) -> List[Dict[str, Any]]:
-    """Rekonstruiert bereits akzeptierte Clips nach einem abgebrochenen Lauf."""
 
     existing_rows = read_csv_rows(run_dir / "akzeptierte_clips.csv")
     if existing_rows:
@@ -2939,6 +2792,8 @@ def generate_candidate(
             wav = model.generate([prompt], progress=True)[0].cpu()
     finally:
         model.set_custom_progress_callback(None)
+
+
     audio = normalize_audio(wav.numpy().reshape(-1), args.ziel_rms_db, args.peak_limit)
     write_wav(target, audio)
     return target
@@ -3082,7 +2937,6 @@ def write_transition_quality_report(
     crossfade_seconds: float,
     bpm_tolerance: float,
 ) -> Dict[str, Any]:
-    """Prueft Pegel- und Frequenzspruenge rund um Longform-Uebergaenge."""
 
     audio = decode_audio(wav_path)
     rows: List[Dict[str, Any]] = []
@@ -3257,7 +3111,6 @@ def write_rating_template(audio_path: Path, duration_sec: float) -> Path:
 
 
 def haeufige_gruende(rows: List[Dict[str, Any]], key: str = "gruende", limit: int = 6) -> List[tuple[str, int]]:
-    """Zaehlt Begruendungen aus CSV-Reportzeilen fuer den Kurzbericht."""
 
     counts: Dict[str, int] = {}
     for row in rows:
@@ -3284,7 +3137,6 @@ def write_scientific_audio_report(
     skipped_sections: List[Dict[str, Any]],
     transition_report: Dict[str, Any],
 ) -> Path:
-    """Schreibt einen sachlichen Kurzbericht fuer die Bachelorarbeit."""
 
     output_audio = final_info.get("output_mp3") or final_info.get("output_wav") or ""
     transition_problem_count = int(transition_report.get("problem_count") or 0)
@@ -3302,7 +3154,7 @@ def write_scientific_audio_report(
     elif transition_problem_count:
         recommendation = "Audio ist pruefbar, die markierten Uebergaenge sollten menschlich nachgehoert werden."
     elif final_info.get("score_rating", {}).get("status") == "failed":
-        recommendation = "Audio ist technisch erzeugt, aber die automatische Fuenf-Score-Bewertung muss nachgeholt werden."
+        recommendation = "Audio ist technisch erzeugt, aber die automatische Acht-Score-Bewertung muss nachgeholt werden."
 
     lines = [
         "# Prozessbericht Longform-Audio",
@@ -3337,7 +3189,7 @@ def write_scientific_audio_report(
         f"- Kandidatenbewertung: `{rel(run_dir / 'kandidaten_score.csv')}`",
         f"- Uebergangsprüfung: `{transition_report.get('path', '')}`",
         f"- Bewertungsvorlage: `{final_info.get('rating_template', '')}`",
-        f"- Fuenf-Score-Bewertung: `{final_info.get('score_rating', {}).get('html', '')}`",
+        f"- Acht-Score-Bewertung: `{final_info.get('score_rating', {}).get('html', '')}`",
         "",
         "## Gepruefte Qualitaetskriterien",
         "- Technische Audioqualitaet: Lautheit, Stille, Clipping, Energie, Bass, Hoehen und Signaltonrisiko.",
@@ -3423,13 +3275,6 @@ def erstelle_zufaellige_musicgen_audio(
     min_sekunden_rms_db: float = -52.0,
     github_push: bool = True,
 ) -> Dict[str, Any]:
-    """Automatisiert eine zufaellige MusicGen-Longform-Generierung.
-
-    Diese Funktion ist der programmatische Einstieg fuer Pipeline, Backend oder
-    spaetere Website. Bei `seed=0` wird jedes Mal ein neuer Zufallsseed genutzt.
-    Alte bewertete Clips werden nur verwendet, wenn `fallback_pool=True` gesetzt
-    ist. Standardmaessig erzeugt MusicGen frische Abschnitte.
-    """
 
     args = argparse.Namespace(
         dauer=dauer,
@@ -3498,7 +3343,6 @@ def erstelle_zufaellige_musicgen_audio(
 
 
 def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict[str, Any]:
-    """Fuehrt die zufaellige MusicGen-Generierung mit fertigen Argumenten aus."""
 
     args.genre = lofi_genre_label(args.genre)
     duration_sec = parse_duration_seconds(args.dauer)
@@ -3765,6 +3609,10 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
     all_checks: List[Dict[str, Any]] = read_csv_rows(run_dir / "technische_pruefung.csv")
     candidate_scores: List[Dict[str, Any]] = read_csv_rows(run_dir / "kandidaten_score.csv")
     skipped_sections: List[Dict[str, Any]] = read_csv_rows(run_dir / "uebersprungene_abschnitte.csv")
+
+
+    consecutive_section_skips = 0
+    ANKER_RESET_SCHWELLE = 2
     generated_candidate_count = len(all_checks)
     max_generated_candidates = int(getattr(args, "max_generierte_kandidaten", 0) or 0)
     fallback_files = discover_fallback_audio() if args.fallback_pool else []
@@ -4001,12 +3849,18 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
                 **reference_check,
             }
             technical_score = score_kandidat(metrics)
+            anker_zuruecksetzen = consecutive_section_skips >= ANKER_RESET_SCHWELLE
             transition_details = score_uebergang(
-                accepted[-1] if accepted else None,
+                None if anker_zuruecksetzen else (accepted[-1] if accepted else None),
                 generated,
                 metrics,
                 args.uebergang_bpm_toleranz,
             )
+            if anker_zuruecksetzen:
+                transition_details["gruende_hinweis"] = (
+                    f"Uebergangs-Anker nach {consecutive_section_skips} gescheiterten "
+                    "Abschnitten in Folge zurueckgesetzt."
+                )
             block_details = score_block_konsistenz(section, candidate_prompt, metrics, args)
             row.update(block_details)
             all_checks.append(row)
@@ -4193,6 +4047,7 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
                 }
             )
             accepted_sections.add(section.abschnitt)
+            consecutive_section_skips = 0
             write_csv(run_dir / "akzeptierte_clips.csv", accepted)
             write_csv(run_dir / "technische_pruefung.csv", all_checks)
             write_csv(run_dir / "rejected_clips.csv", rejected)
@@ -4234,6 +4089,7 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
                 }
             )
             accepted_sections.add(section.abschnitt)
+            consecutive_section_skips = 0
             write_csv(run_dir / "akzeptierte_clips.csv", accepted)
             write_csv(run_dir / "technische_pruefung.csv", all_checks)
             write_csv(run_dir / "rejected_clips.csv", rejected)
@@ -4289,6 +4145,7 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
                 if metrics["status"] == "OK":
                     accepted.append(row)
                     accepted_sections.add(section.abschnitt)
+                    consecutive_section_skips = 0
                     accepted_path = fallback_path
                     write_csv(run_dir / "akzeptierte_clips.csv", accepted)
                     write_csv(run_dir / "technische_pruefung.csv", all_checks)
@@ -4296,6 +4153,7 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
                     break
                 rejected.append(row)
         if accepted_path is None:
+            consecutive_section_skips += 1
             skipped_sections.append(
                 {
                     "abschnitt": section.abschnitt,
@@ -4305,6 +4163,7 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
                     "prompt": section.prompt,
                     "seed": section.seed,
                     "grund": "Kein Kandidat hat die technische Pruefung bestanden.",
+                    "aufeinanderfolgende_fehlschlaege": consecutive_section_skips,
                 }
             )
             write_csv(run_dir / "technische_pruefung.csv", all_checks)
@@ -4364,6 +4223,19 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
         }
         write_json(run_dir / "automatische_bewertung_fehler.json", auto_rating)
 
+    seam_boundaries_sec: List[float] = []
+    assembled_end_fuer_naehte = 0.0
+    for index, row in enumerate(ordered_accepted):
+        block_duration = (
+            row_block_duration(row, args.abschnitt_sekunden)
+            if nutzt_einen_clip_pro_block(args)
+            else args.abschnitt_sekunden
+        )
+        start = 0.0 if index == 0 else max(0.0, assembled_end_fuer_naehte - crossfade_seconds)
+        if index > 0:
+            seam_boundaries_sec.append(start)
+        assembled_end_fuer_naehte = min(duration_sec, start + block_duration)
+
     score_rating: Dict[str, Any]
     try:
         from audio_bewertung import bewerte_audio_mit_genrestandard
@@ -4374,12 +4246,13 @@ def fuehre_zufaellige_musicgen_generierung_aus(args: argparse.Namespace) -> Dict
             run_dir,
             Path(args.referenz_dataset_root).expanduser(),
             int(args.referenzen_pro_genre),
+            seam_boundaries_sec,
         )
     except Exception as exc:
         score_rating = {
             "status": "failed",
             "error": f"{type(exc).__name__}: {exc}",
-            "hinweis": "Fuenf-Score-Bewertung konnte nicht erstellt werden.",
+            "hinweis": "Acht-Score-Bewertung konnte nicht erstellt werden.",
         }
         write_json(run_dir / "score_bewertung_fehler.json", score_rating)
 

@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""Erstellt ein kuratiertes MusicGen-Dataset fuer Melody und Uebergaenge.
-
-Das Skript veraendert das bestehende Dataset nicht. Es liest die vorhandenen
-30s-Manifeste, waehlt passende Clips aus und schreibt ein neues Manifest-Dataset
-mit verbesserten Captions. Die WAV-Dateien werden aus Speichergruenden nicht
-kopiert; die neuen Manifest-Zeilen zeigen weiter auf die bestehenden WAVs.
-
-Ziel fuer das LoRA-Training:
-- mehr Clips mit klarer Melodie
-- mehr Clips mit kontrollierten Uebergaengen
-- weniger unklare/generische Trainingsbeispiele
-- weniger Dominanz einzelner Quellen
-"""
 
 from __future__ import annotations
 
@@ -72,13 +59,11 @@ PROBLEM_WOERTER = (
 
 
 def jetzt_utc() -> str:
-    """UTC-Zeitstempel fuer reproduzierbare Reports."""
 
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def rel(path: Path) -> str:
-    """Schreibt Pfade in Reports moeglichst relativ zum Projekt."""
 
     try:
         return str(path.resolve().relative_to(PROJEKTWURZEL))
@@ -87,7 +72,6 @@ def rel(path: Path) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    """Definiert die Bedienung des Kuratierungsschritts."""
 
     parser = argparse.ArgumentParser(description="Erstellt ein kuratiertes Melody/Uebergang-Dataset.")
     parser.add_argument("--quelle", default=str(QUELL_DATASET), help="Bestehendes 30s-Dataset.")
@@ -106,7 +90,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def lese_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Liest ein JSONL-Manifest."""
 
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as handle:
@@ -122,7 +105,6 @@ def lese_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def text_fuer_row(row: dict[str, Any]) -> str:
-    """Sammelt alle Textfelder fuer einfache Heuristiken."""
 
     parts: list[str] = []
     for key in ("caption", "text", "description", "title", "source_title", "genre", "instrument", "name"):
@@ -139,13 +121,11 @@ def text_fuer_row(row: dict[str, Any]) -> str:
 
 
 def enthaelt(text: str, woerter: tuple[str, ...]) -> bool:
-    """Prueft, ob eines der Stichworte im Text vorkommt."""
 
     return any(wort in text for wort in woerter)
 
 
 def clip_typ(row: dict[str, Any]) -> str:
-    """Ordnet einen Clip einem Trainingsfokus zu."""
 
     text = text_fuer_row(row)
     teil = str(row.get("teil") or "").strip().upper()
@@ -165,7 +145,6 @@ def clip_typ(row: dict[str, Any]) -> str:
 
 
 def score_row(row: dict[str, Any]) -> tuple[float, list[str]]:
-    """Bewertet, wie passend eine Manifest-Zeile fuer das kuratierte Dataset ist."""
 
     text = text_fuer_row(row)
     gruende: list[str] = []
@@ -192,13 +171,11 @@ def score_row(row: dict[str, Any]) -> tuple[float, list[str]]:
 
 
 def quelle(row: dict[str, Any]) -> str:
-    """Ermittelt eine stabile Quellenkennung fuer Balancing."""
 
     return str(row.get("source_video_id") or row.get("source_file") or row.get("source_title") or "unbekannt")
 
 
 def pruefe_wav_header(path: Path) -> str:
-    """Prueft Dauer, Sample-Rate und Kanaele ohne das ganze Audio zu dekodieren."""
 
     if not path.exists():
         return "audio_fehlt"
@@ -221,7 +198,6 @@ def pruefe_wav_header(path: Path) -> str:
 
 
 def caption_fuer_typ(row: dict[str, Any], typ: str) -> str:
-    """Erzeugt eine genauere Caption fuer LoRA-Training."""
 
     text = text_fuer_row(row)
     instrumente = str(row.get("instrument") or "").strip()
@@ -249,7 +225,6 @@ def caption_fuer_typ(row: dict[str, Any], typ: str) -> str:
 
 
 def ziel_split(index: int, seed: int) -> str:
-    """Erzeugt reproduzierbare 90/5/5-Splits fuer das neue Dataset."""
 
     rng = random.Random(seed + index * 104729)
     value = rng.random()
@@ -261,7 +236,6 @@ def ziel_split(index: int, seed: int) -> str:
 
 
 def ziel_metadaten_pfad(ziel: Path, split: str, row: dict[str, Any], index: int) -> Path:
-    """Legt den Ort fuer die neue Sidecar-Metadatei fest."""
 
     name = str(row.get("name") or Path(str(row.get("path") or f"clip_{index:06d}")).stem)
     kurz = hashlib.sha1(f"{name}:{index}".encode("utf-8")).hexdigest()[:8]
@@ -270,7 +244,6 @@ def ziel_metadaten_pfad(ziel: Path, split: str, row: dict[str, Any], index: int)
 
 
 def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    """Schreibt Manifest-Zeilen."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -279,7 +252,6 @@ def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def schreibe_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    """Schreibt CSV-Reports."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = sorted({key for row in rows for key in row.keys()}) if rows else ["status"]
@@ -290,7 +262,6 @@ def schreibe_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def waehle_balanciert(kandidaten: list[dict[str, Any]], args: argparse.Namespace) -> list[dict[str, Any]]:
-    """Waehlt Clips mit Typ- und Quellen-Balancing aus."""
 
     rng = random.Random(args.seed)
     nach_typ: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -344,7 +315,6 @@ def waehle_balanciert(kandidaten: list[dict[str, Any]], args: argparse.Namespace
 
 
 def main() -> int:
-    """Erstellt das kuratierte Manifest-Dataset."""
 
     args = parse_args()
     quelle_root = Path(args.quelle).expanduser().resolve()

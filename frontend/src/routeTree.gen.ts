@@ -12,12 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
+import { Route as StudioEvaluationRouteImport } from './routes/studio.evaluation'
 import { Route as StudioGenerateRouteImport } from './routes/studio.generate'
 import { Route as StudioImportRouteImport } from './routes/studio.import'
 import { Route as StudioJobsRouteImport } from './routes/studio.jobs'
 import { Route as StudioLibraryRouteImport } from './routes/studio.library'
 import { Route as StudioModelRouteImport } from './routes/studio.model'
 import { Route as StudioVideoRouteImport } from './routes/studio.video'
+import { Route as StudioLibraryIdRouteImport } from './routes/studio.library_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -32,6 +34,11 @@ const StudioRoute = StudioRouteImport.update({
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioEvaluationRoute = StudioEvaluationRouteImport.update({
+  id: '/evaluation',
+  path: '/evaluation',
   getParentRoute: () => StudioRoute,
 } as any)
 const StudioGenerateRoute = StudioGenerateRouteImport.update({
@@ -64,10 +71,16 @@ const StudioVideoRoute = StudioVideoRouteImport.update({
   path: '/video',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioLibraryIdRoute = StudioLibraryIdRouteImport.update({
+  id: '/library_/$id',
+  path: '/library/$id',
+  getParentRoute: () => StudioRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/evaluation': typeof StudioEvaluationRoute
   '/studio/generate': typeof StudioGenerateRoute
   '/studio/import': typeof StudioImportRoute
   '/studio/jobs': typeof StudioJobsRoute
@@ -75,9 +88,11 @@ export interface FileRoutesByFullPath {
   '/studio/model': typeof StudioModelRoute
   '/studio/video': typeof StudioVideoRoute
   '/studio/': typeof StudioIndexRoute
+  '/studio/library/$id': typeof StudioLibraryIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/studio/evaluation': typeof StudioEvaluationRoute
   '/studio/generate': typeof StudioGenerateRoute
   '/studio/import': typeof StudioImportRoute
   '/studio/jobs': typeof StudioJobsRoute
@@ -85,11 +100,13 @@ export interface FileRoutesByTo {
   '/studio/model': typeof StudioModelRoute
   '/studio/video': typeof StudioVideoRoute
   '/studio': typeof StudioIndexRoute
+  '/studio/library/$id': typeof StudioLibraryIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/evaluation': typeof StudioEvaluationRoute
   '/studio/generate': typeof StudioGenerateRoute
   '/studio/import': typeof StudioImportRoute
   '/studio/jobs': typeof StudioJobsRoute
@@ -97,12 +114,14 @@ export interface FileRoutesById {
   '/studio/model': typeof StudioModelRoute
   '/studio/video': typeof StudioVideoRoute
   '/studio/': typeof StudioIndexRoute
+  '/studio/library_/$id': typeof StudioLibraryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/studio'
+    | '/studio/evaluation'
     | '/studio/generate'
     | '/studio/import'
     | '/studio/jobs'
@@ -110,9 +129,11 @@ export interface FileRouteTypes {
     | '/studio/model'
     | '/studio/video'
     | '/studio/'
+    | '/studio/library/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/studio/evaluation'
     | '/studio/generate'
     | '/studio/import'
     | '/studio/jobs'
@@ -120,10 +141,12 @@ export interface FileRouteTypes {
     | '/studio/model'
     | '/studio/video'
     | '/studio'
+    | '/studio/library/$id'
   id:
     | '__root__'
     | '/'
     | '/studio'
+    | '/studio/evaluation'
     | '/studio/generate'
     | '/studio/import'
     | '/studio/jobs'
@@ -131,6 +154,7 @@ export interface FileRouteTypes {
     | '/studio/model'
     | '/studio/video'
     | '/studio/'
+    | '/studio/library_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -159,6 +183,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/studio/'
       preLoaderRoute: typeof StudioIndexRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/evaluation': {
+      id: '/studio/evaluation'
+      path: '/evaluation'
+      fullPath: '/studio/evaluation'
+      preLoaderRoute: typeof StudioEvaluationRouteImport
       parentRoute: typeof StudioRoute
     }
     '/studio/generate': {
@@ -203,10 +234,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioVideoRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/library_/$id': {
+      id: '/studio/library_/$id'
+      path: '/library/$id'
+      fullPath: '/studio/library/$id'
+      preLoaderRoute: typeof StudioLibraryIdRouteImport
+      parentRoute: typeof StudioRoute
+    }
   }
 }
 
 interface StudioRouteChildren {
+  StudioEvaluationRoute: typeof StudioEvaluationRoute
   StudioGenerateRoute: typeof StudioGenerateRoute
   StudioImportRoute: typeof StudioImportRoute
   StudioJobsRoute: typeof StudioJobsRoute
@@ -214,9 +253,11 @@ interface StudioRouteChildren {
   StudioModelRoute: typeof StudioModelRoute
   StudioVideoRoute: typeof StudioVideoRoute
   StudioIndexRoute: typeof StudioIndexRoute
+  StudioLibraryIdRoute: typeof StudioLibraryIdRoute
 }
 
 const StudioRouteChildren: StudioRouteChildren = {
+  StudioEvaluationRoute: StudioEvaluationRoute,
   StudioGenerateRoute: StudioGenerateRoute,
   StudioImportRoute: StudioImportRoute,
   StudioJobsRoute: StudioJobsRoute,
@@ -224,6 +265,7 @@ const StudioRouteChildren: StudioRouteChildren = {
   StudioModelRoute: StudioModelRoute,
   StudioVideoRoute: StudioVideoRoute,
   StudioIndexRoute: StudioIndexRoute,
+  StudioLibraryIdRoute: StudioLibraryIdRoute,
 }
 
 const StudioRouteWithChildren =

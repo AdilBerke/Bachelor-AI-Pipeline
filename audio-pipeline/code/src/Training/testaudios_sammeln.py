@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""Sammelt frisch erzeugte Testaudios in einen gemeinsamen Ordner.
-
-Jeder Genre-Lauf von audio_erstellen.py erzeugt seine eigene
-pipeline_<timestamp>_audio/lange_audio.mp3. Fuer den Sammel-GitHub-Push aller
-Testaudios auf einmal (statt 5 Einzel-Commits) kopiert dieses Skript die
-zuletzt fertiggestellten Audios - eines je uebergebenem Genre, in
-Erzeugungsreihenfolge - mit klaren Genre-Dateinamen in einen neuen Ordner.
-"""
 
 from __future__ import annotations
 

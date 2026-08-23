@@ -1,15 +1,4 @@
 #!/usr/bin/env python3
-"""Reichert die statischen Genre-Captions im LoRA-Trainingsdatensatz um echte,
-pro Clip gemessene Audiomerkmale an.
-
-Bisher bekam jeder Clip eines Genres exakt dieselbe Caption (siehe
-GENRE_CAPTIONS in genre_regeln.py). Dieses Skript berechnet fuer jeden Clip
-echte technische Merkmale (BPM, Bassanteil, Snareanteil, Hoehenanteil,
-Dynamikspanne - dieselben Werte, die auch fuer die Bewertung genutzt werden)
-und haengt daraus abgeleitete, kurze Textbausteine an die bestehende
-Genre-Caption an. Es wird nichts erfunden: jeder Textbaustein entspricht
-einem tatsaechlich gemessenen Schwellenwert.
-"""
 
 from __future__ import annotations
 
@@ -26,7 +15,6 @@ DATASET_ROOT = PROJECT_ROOT / "daten" / "processed" / "lora_training"
 
 
 def merkmal_fragmente(m: Dict[str, float]) -> list[str]:
-    """Leitet kurze Textbausteine aus gemessenen Werten ab (keine Erfindung)."""
 
     frags: list[str] = []
     bpm = m.get("bpm", 0.0)

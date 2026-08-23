@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""Unterteilt MusicGen-30s-Clips in Lofi-Subgenres.
-
-Das Skript veraendert keine WAV-Dateien. Es liest ein bestehendes MusicGen-
-Manifest-Dataset, klassifiziert jede Manifest-Zeile anhand von Titel,
-Keywords, Mood, Instrumenten und Caption und schreibt ein neues Manifest-
-Dataset mit zusaetzlichen Genre-Feldern.
-
-Ziel fuer das naechste LoRA-Training:
-- MusicGen soll nicht nur "Lofi" sehen, sondern klarere Stilgruppen.
-- Captions werden genre-spezifischer, bleiben aber weiter Lofi.
-- Die bestehende Ordnerstruktur und die vorhandenen Audiodateien bleiben
-  unveraendert.
-"""
 
 from __future__ import annotations
 
@@ -164,12 +151,10 @@ GENRE_REGELN: dict[str, dict[str, Any]] = {
 
 
 def jetzt_utc() -> str:
-    """UTC-Zeitstempel fuer Reports."""
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def rel(path: Path) -> str:
-    """Gibt Pfade in Reports relativ zum Projekt aus, wenn moeglich."""
     try:
         return str(path.resolve().relative_to(PROJEKTWURZEL))
     except Exception:
@@ -177,7 +162,6 @@ def rel(path: Path) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    """Definiert die CLI fuer die Genre-Unterteilung."""
     parser = argparse.ArgumentParser(description="Unterteilt MusicGen-Clips in Lofi-Subgenres.")
     parser.add_argument("--quelle", default=str(STANDARD_QUELLE), help="Bestehendes 30s-Dataset.")
     parser.add_argument("--ziel", default=str(STANDARD_ZIEL), help="Neues genre-basiertes Manifest-Dataset.")
@@ -189,7 +173,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def lese_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Liest ein Manifest im JSONL-Format."""
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
@@ -203,7 +186,6 @@ def lese_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def textfelder(row: dict[str, Any]) -> str:
-    """Sammelt alle fuer Genre-Erkennung relevanten Textfelder."""
     parts: list[str] = []
     for key in (
         "caption",
@@ -229,7 +211,6 @@ def textfelder(row: dict[str, Any]) -> str:
 
 
 def normalisiere_text(text: str) -> str:
-    """Vereinfacht Text fuer robuste Stichwortsuche."""
     text = text.lower()
     text = text.replace("/", " ").replace("_", " ").replace("-", " ")
     text = re.sub(r"\s+", " ", text)
@@ -237,7 +218,6 @@ def normalisiere_text(text: str) -> str:
 
 
 def genre_scores(row: dict[str, Any]) -> dict[str, float]:
-    """Berechnet Genre-Scores anhand von Keywords und Metadaten."""
     text = normalisiere_text(textfelder(row))
     scores: dict[str, float] = {}
     for genre, regel in GENRE_REGELN.items():
@@ -248,6 +228,7 @@ def genre_scores(row: dict[str, Any]) -> dict[str, float]:
                 score += float(gewicht)
         scores[genre] = score
 
+
     if str(row.get("teil") or "").upper() == "B":
         for genre in list(scores):
             if scores[genre] > 0:
@@ -257,7 +238,6 @@ def genre_scores(row: dict[str, Any]) -> dict[str, float]:
 
 
 def bestes_genre(row: dict[str, Any], min_confidence: float) -> tuple[str, float, dict[str, float]]:
-    """Waehlt das staerkste Genre und gibt eine einfache Confidence zurueck."""
     scores = genre_scores(row)
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
     top_genre, top_score = sorted_scores[0]
@@ -269,12 +249,10 @@ def bestes_genre(row: dict[str, Any], min_confidence: float) -> tuple[str, float
 
 
 def quelle(row: dict[str, Any]) -> str:
-    """Ermittelt eine Quellkennung fuer Reports."""
     return str(row.get("source_video_id") or row.get("source_file") or row.get("source_title") or "unbekannt")
 
 
 def pruefe_wav_header(path: Path) -> str:
-    """Prueft schnell, ob WAV-Dateien MusicGen-konform bleiben."""
     if not path.exists():
         return "audio_fehlt"
     if path.suffix.lower() != ".wav":
@@ -296,7 +274,6 @@ def pruefe_wav_header(path: Path) -> str:
 
 
 def caption_mit_genre(row: dict[str, Any], genre: str) -> str:
-    """Erstellt eine genre-spezifische Caption, bleibt aber beim Lofi-Ziel."""
     regel = GENRE_REGELN[genre]
     basis = regel["caption"]
     text = normalisiere_text(textfelder(row))
@@ -319,7 +296,6 @@ def caption_mit_genre(row: dict[str, Any], genre: str) -> str:
 
 
 def bereinige_row(row: dict[str, Any], split: str, min_confidence: float) -> dict[str, Any]:
-    """Erzeugt eine neue Manifest-Zeile mit Genre-Feldern."""
     genre, confidence, scores = bestes_genre(row, min_confidence)
     clean = {k: v for k, v in row.items() if not k.startswith("_")}
     original_caption = str(clean.get("caption") or clean.get("text") or clean.get("description") or "")
@@ -338,7 +314,6 @@ def bereinige_row(row: dict[str, Any], split: str, min_confidence: float) -> dic
 
 
 def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    """Schreibt ein JSONL-Manifest."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
@@ -346,7 +321,6 @@ def schreibe_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str] | None = None) -> None:
-    """Schreibt CSV-Reports."""
     path.parent.mkdir(parents=True, exist_ok=True)
     if fieldnames is None:
         fieldnames = sorted({key for row in rows for key in row.keys()}) if rows else ["status"]
@@ -357,7 +331,6 @@ def schreibe_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str] |
 
 
 def main() -> int:
-    """Startet die Genre-Unterteilung."""
     args = parse_args()
     quelle_root = Path(args.quelle).expanduser().resolve()
     ziel_root = Path(args.ziel).expanduser().resolve()

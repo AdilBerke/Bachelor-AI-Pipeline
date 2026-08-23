@@ -32,6 +32,8 @@ const DURATIONS = [
   { label: "3 h", value: "3h" },
 ];
 
+const SEGMENT_PRESETS = [30, 60, 90, 120];
+
 const stepLabels: Record<string, string> = {
   model_loading: "Modell laden",
   segment_generation: "Clips generieren",
@@ -59,17 +61,14 @@ function GeneratePage() {
   const settings = getSettings();
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: api.promptProfiles });
 
-  const [durationInput, setDurationInput] = useState(`${settings.defaultDurationMin}m`);
-  const [profile, setProfile] = useState<PromptProfile>(settings.defaultProfile);
+  const [durationInput, setDurationInput] = useState("");
+  const [profile, setProfile] = useState<PromptProfile | "">("");
   const [customPrompt, setCustomPrompt] = useState("");
-  const [targetBpm, setTargetBpm] = useState(78);
-  const [instruments, setInstruments] = useState(
-    "mellow piano, warm bass, soft drums, subtle vinyl texture",
-  );
+  const [targetBpm, setTargetBpm] = useState<number | "">("");
+  const [instruments, setInstruments] = useState("");
   const [format, setFormat] = useState<OutputFormat>(settings.defaultFormat);
-  const [segment, setSegment] = useState<30 | 60 | 90 | 120>(settings.defaultSegmentSec);
+  const [segment, setSegment] = useState<number | "">("");
   const [crossfade, setCrossfade] = useState<number>(settings.defaultCrossfadeSec);
-  const [normalize, setNormalize] = useState<boolean>(settings.autoNormalize);
   const [githubPush, setGithubPush] = useState(true);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
@@ -109,17 +108,17 @@ function GeneratePage() {
     (!!activeJobId && (job.data?.status === "running" || job.data?.status === "queued"));
 
   const submit = () => {
+    if (!profile || !durationInput) return;
     const body: GenerateRequest = {
       targetDurationMin: finalDuration,
       durationInput,
       promptProfile: profile,
       customPrompt: customPrompt || undefined,
-      targetBpm,
+      targetBpm: targetBpm === "" ? undefined : targetBpm,
       instruments: instruments || undefined,
-      segmentDurationSec: segment,
+      segmentDurationSec: segment === "" ? undefined : segment,
       crossfadeSec: crossfade,
       seed: 0,
-      normalize,
       outputFormat: format,
       adapterPath: "training/musicgen/lora_training/adapter.pt",
       githubPush,
@@ -205,7 +204,10 @@ function GeneratePage() {
                   min={50}
                   max={120}
                   value={targetBpm}
-                  onChange={(event) => setTargetBpm(Number(event.target.value))}
+                  onChange={(event) =>
+                    setTargetBpm(event.target.value === "" ? "" : Number(event.target.value))
+                  }
+                  placeholder="z.B. 78"
                   className="h-10 w-full rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
                 />
               </Field>
@@ -213,6 +215,7 @@ function GeneratePage() {
                 <input
                   value={instruments}
                   onChange={(event) => setInstruments(event.target.value)}
+                  placeholder="z.B. mellow piano, warm bass, soft drums"
                   className="h-10 w-full rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
                 />
               </Field>
@@ -226,18 +229,10 @@ function GeneratePage() {
                   <option value="wav_mp3">WAV + MP3</option>
                 </Select>
               </Field>
-              <Field label="Segmentlänge">
-                <Select value={String(segment)} onChange={(value) => setSegment(Number(value) as 30 | 60 | 90 | 120)}>
-                  <option value="30">30 Sekunden</option>
-                  <option value="60">60 Sekunden</option>
-                  <option value="90">90 Sekunden</option>
-                  <option value="120">120 Sekunden</option>
-                </Select>
-              </Field>
               <Field label={`Crossfade ${crossfade}s`}>
                 <input
                   type="range"
-                  min={2}
+                  min={0}
                   max={10}
                   value={crossfade}
                   onChange={(event) => setCrossfade(Number(event.target.value))}
@@ -246,15 +241,35 @@ function GeneratePage() {
               </Field>
             </div>
 
-            <label className="flex items-center justify-between rounded-lg border hairline bg-background/40 px-3 py-3 text-sm">
-              Normalisierung
+            <Field label="Segmentlänge">
+              <div className="grid grid-cols-4 gap-2">
+                {SEGMENT_PRESETS.map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => setSegment(value)}
+                    className={[
+                      "h-10 rounded-lg border text-sm transition",
+                      segment === value
+                        ? "border-warm/50 bg-warm text-warm-foreground"
+                        : "hairline bg-background/40 text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    {value}s
+                  </button>
+                ))}
+              </div>
               <input
-                type="checkbox"
-                checked={normalize}
-                onChange={(event) => setNormalize(event.target.checked)}
-                className="h-4 w-4 accent-warm"
+                type="number"
+                min={5}
+                step={5}
+                value={segment}
+                onChange={(event) =>
+                  setSegment(event.target.value === "" ? "" : Math.max(5, Number(event.target.value)))
+                }
+                placeholder="Eigene Sekunden, z.B. 45"
+                className="mt-2 h-10 w-full rounded-lg border hairline bg-background/40 px-3 text-sm outline-none focus:border-warm/60"
               />
-            </label>
+            </Field>
 
             <label className="flex items-center justify-between rounded-lg border hairline bg-background/40 px-3 py-3 text-sm">
               Audio nach GitHub vorbereiten
@@ -268,11 +283,17 @@ function GeneratePage() {
 
             <button
               onClick={submit}
-              disabled={isRunning}
+              disabled={isRunning || !profile || !durationInput}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-warm px-4 text-sm font-medium text-warm-foreground transition hover:brightness-110 disabled:opacity-50"
             >
               <Play className="h-4 w-4" />
-              {startMutation.isPending ? "Startet" : "Generierung starten"}
+              {startMutation.isPending
+                ? "Startet"
+                : !profile
+                  ? "Genre wählen"
+                  : !durationInput
+                    ? "Dauer wählen"
+                    : "Generierung starten"}
             </button>
           </div>
         </section>
@@ -285,9 +306,9 @@ function GeneratePage() {
 
           <div className="space-y-3">
             <StatusRow label="Vorgang" value={activeJobId ?? "kein aktiver Vorgang"} />
-            <StatusRow label="Genre" value={profileLabel(profile)} />
-            <StatusRow label="Dauer" value={`${finalDuration} min`} />
-            <StatusRow label="BPM" value={`${targetBpm}`} />
+            <StatusRow label="Genre" value={profile ? profileLabel(profile) : "noch nicht gewählt"} />
+            <StatusRow label="Dauer" value={durationInput ? `${finalDuration} min` : "noch nicht gewählt"} />
+            <StatusRow label="BPM" value={targetBpm === "" ? "Standard (78)" : `${targetBpm}`} />
             <StatusRow label="GitHub" value={githubPush ? "aktiv" : "aus"} />
             <StatusRow label="Schritt" value={stepLabels[job.data?.step ?? "model_loading"]} />
 

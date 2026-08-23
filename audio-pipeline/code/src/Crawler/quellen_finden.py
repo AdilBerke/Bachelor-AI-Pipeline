@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Sucht gezielt Quellen fuer das LoRA-Clip-Dataset.
-
-Die Datei startet keine Downloads, kein Clippen und kein Training. Sie liest den
-aktuellen Fehlbestand aus dem LoRA-Zieldataset und startet fuer fehlende
-Genres automatisch die Top-5-Suche. Dadurch bleibt die Datensammlung
-kontrolliert und gleichmaessig ueber mehrere Lofi-Genres verteilt.
-"""
 
 from __future__ import annotations
 
@@ -51,7 +44,6 @@ GENRE_SUCHE = {
 
 
 def slug(text: str) -> str:
-    """Macht kurze Dateinamen aus freien Texten."""
     value = text.strip().lower()
     value = value.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
     result = []
@@ -61,7 +53,6 @@ def slug(text: str) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    """CLI fuer die gezielte Quellensuche."""
     parser = argparse.ArgumentParser(description="Sucht Quellen fuer fehlende LoRA-Genres.")
     parser.add_argument(
         "--fehlende-csv",
@@ -83,12 +74,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def standard_fehlende_csv() -> Path:
-    """Nutzt den Fehlbestand des LoRA-Datasets."""
     return FEHLENDE_CLIPS_CSV
 
 
 def lese_fehlende(path: Path) -> list[dict[str, Any]]:
-    """Liest den Fehlbestand pro Genre aus dem Zieldataset."""
     if not path.exists():
         raise FileNotFoundError(f"Fehlende-Clips-Report fehlt: {path}")
     rows: list[dict[str, Any]] = []
@@ -110,7 +99,6 @@ def lese_fehlende(path: Path) -> list[dict[str, Any]]:
 
 
 def filter_genres(rows: list[dict[str, Any]], wanted: str) -> list[dict[str, Any]]:
-    """Filtert optionale Genre-Auswahl und sortiert nach hoechstem Fehlbestand."""
     wanted_set = {item.strip() for item in wanted.split(",") if item.strip()}
     filtered = [row for row in rows if int(row["missing"]) > 0 and row["genre"] in GENRE_SUCHE]
     if wanted_set:
@@ -119,7 +107,6 @@ def filter_genres(rows: list[dict[str, Any]], wanted: str) -> list[dict[str, Any
 
 
 def top10_command(args: argparse.Namespace, run_name: str, row: dict[str, Any]) -> list[str]:
-    """Baut den Top-5-Suchbefehl fuer ein Genre."""
     genre_info = GENRE_SUCHE[row["genre"]]
     output_name = f"{run_name}_{slug(str(row['genre']))}"
     command = [
@@ -153,7 +140,6 @@ def top10_command(args: argparse.Namespace, run_name: str, row: dict[str, Any]) 
 
 
 def top10_csv_hat_zeilen(command: list[str]) -> bool:
-    """Prueft nach einem Suchlauf, ob die erwartete Top-5-CSV Eintraege hat."""
 
     if "--output-name" not in command:
         return False
@@ -169,13 +155,11 @@ def top10_csv_hat_zeilen(command: list[str]) -> bool:
 
 
 def schreibe_report(path: Path, payload: dict[str, Any]) -> None:
-    """Schreibt den Suchlauf-Report."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> int:
-    """Startet die genreweise Top-5-Suche fuer fehlende Clips."""
     args = parse_args()
     run_name = slug(args.run_name or f"top10_quellen_5000_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     fehlende_csv = Path(args.fehlende_csv).expanduser().resolve() if args.fehlende_csv else standard_fehlende_csv()
@@ -228,6 +212,8 @@ def main() -> int:
         item["returncode"] = result.returncode
         item["status"] = "ok" if result.returncode == 0 else "fehler"
         if result.returncode != 0 or not top10_csv_hat_zeilen(item["command"]):
+
+
             item["status"] = "leer" if result.returncode == 0 else "fehler"
             errors += 1
 

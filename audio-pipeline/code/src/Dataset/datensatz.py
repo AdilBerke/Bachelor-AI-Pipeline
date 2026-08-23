@@ -1,19 +1,11 @@
 #!/usr/bin/env python3
-"""Dataset-Befehle.
-
-Diese Datei buendelt die aktiven Dataset-Werkzeuge: Validierung,
-Qualitaetspruefung und Clip-Erzeugung. Sie ist damit der zentrale Ort fuer alle
-Schritte, die aus Audioquellen ein MusicGen-taugliches 30s-WAV-Dataset machen.
-
-Fuer die Bachelorarbeit ist die Trennung wichtig: Diese Datei veraendert nicht
-das Modell, sondern prueft und erzeugt nur Trainingsdaten.
-"""
 
 from __future__ import annotations
 
 import sys
 import types
 from pathlib import Path
+
 
 MODULES = {
     'validate': '#!/usr/bin/env python3\n"""Validate the prepared MusicGen dataset manifests and sidecar metadata."""\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport wave\nfrom pathlib import Path\nfrom typing import Any, Dict, Iterable, List\n\n\nPROJECT_ROOT = next(parent for parent in Path(__file__).resolve().parents if ((parent / "code" / "configs" / "konfiguration.yaml").exists() or (parent / "konfiguration.yaml").exists()) and (parent / "code").exists())\nDEFAULT_DATASET_ROOT = PROJECT_ROOT / "daten" / "processed" / "musicgen_30s_aus_60s_clips"\nSPLITS = ("train", "valid", "test")\n\n\ndef parse_args() -> argparse.Namespace:\n    parser = argparse.ArgumentParser(description="Validate local MusicGen dataset manifests.")\n    parser.add_argument("--dataset-root", default=str(DEFAULT_DATASET_ROOT))\n    parser.add_argument("--expected-sample-rate", type=int, default=32000)\n    parser.add_argument("--expected-channels", type=int, default=1)\n    parser.add_argument("--expected-duration-sec", type=float, default=30.0)\n    parser.add_argument("--duration-tolerance-sec", type=float, default=0.05)\n    parser.add_argument(\n        "--require-sidecar",\n        action="store_true",\n        help="Require a same-name JSON sidecar next to every WAV. Disabled for manifest-only datasets.",\n    )\n    return parser.parse_args()\n\n\ndef read_jsonl(path: Path) -> Iterable[Dict[str, Any]]:\n    with path.open("r", encoding="utf-8") as handle:\n        for line_number, raw_line in enumerate(handle, start=1):\n            line = raw_line.strip()\n            if not line:\n                continue\n            item = json.loads(line)\n            if not isinstance(item, dict):\n                raise ValueError(f"{path}:{line_number} is not a JSON object")\n            yield item\n\n\ndef validate_row(\n    row: Dict[str, Any],\n    expected_sample_rate: int,\n    expected_channels: int,\n    expected_duration: float,\n    tolerance: float,\n    require_sidecar: bool,\n) -> None:\n    wav_path = Path(str(row.get("path") or ""))\n    if not wav_path.exists():\n        raise FileNotFoundError(f"Missing audio file: {wav_path}")\n    sidecar_path = wav_path.with_suffix(".json")\n    if require_sidecar and not sidecar_path.exists():\n        raise FileNotFoundError(f"Missing sidecar JSON: {sidecar_path}")\n    if not str(row.get("caption") or row.get("text") or row.get("description") or "").strip():\n        raise ValueError(f"Missing caption/text/description for {wav_path}")\n    with wave.open(str(wav_path), "rb") as handle:\n        actual_sample_rate = int(handle.getframerate())\n        actual_channels = int(handle.getnchannels())\n        actual_duration = handle.getnframes() / float(actual_sample_rate)\n    if actual_sample_rate != expected_sample_rate:\n        raise ValueError(f"Unexpected WAV sample rate for {wav_path}: {actual_sample_rate}")\n    if expected_channels > 0 and actual_channels != expected_channels:\n        raise ValueError(f"Unexpected WAV channels for {wav_path}: {actual_channels}")\n    if abs(actual_duration - expected_duration) > tolerance:\n        raise ValueError(f"Unexpected WAV duration for {wav_path}: {actual_duration}")\n\n    manifest_sample_rate = int(row.get("sample_rate") or 0)\n    if manifest_sample_rate and manifest_sample_rate != expected_sample_rate:\n        raise ValueError(f"Unexpected manifest sample rate for {wav_path}: {row.get(\'sample_rate\')}")\n    manifest_duration = float(row.get("duration") or 0)\n    if manifest_duration and abs(manifest_duration - expected_duration) > tolerance:\n        raise ValueError(f"Unexpected manifest duration for {wav_path}: {manifest_duration}")\n\n\ndef main() -> None:\n    args = parse_args()\n    dataset_root = Path(args.dataset_root).resolve()\n    report: Dict[str, int] = {}\n    for split in SPLITS:\n        manifest_path = dataset_root / split / "data.jsonl"\n        rows = list(read_jsonl(manifest_path))\n        for row in rows:\n            validate_row(\n                row,\n                expected_sample_rate=args.expected_sample_rate,\n                expected_channels=args.expected_channels,\n                expected_duration=args.expected_duration_sec,\n                tolerance=args.duration_tolerance_sec,\n                require_sidecar=args.require_sidecar,\n            )\n        report[split] = len(rows)\n    report["total"] = sum(report.values())\n    print(json.dumps(report, ensure_ascii=False, indent=2))\n\n\nif __name__ == "__main__":\n    main()\n',
@@ -25,7 +17,6 @@ MODULES = {
 DEPENDENCIES = {}
 
 def _load_module(name: str) -> None:
-    """Laedt ein eingebettetes Dataset-Hilfsmodul, falls ein Befehl es braucht."""
     if name in sys.modules:
         return
     source = MODULES[name]
@@ -36,7 +27,6 @@ def _load_module(name: str) -> None:
     exec(compile(source, f"{Path(__file__).name}:{name}", "exec"), module.__dict__)
 
 def _run(command: str, args: list[str]) -> int:
-    """Startet den gewaehlten Dataset-Unterbefehl mit unveraenderten Argumenten."""
     for dep in DEPENDENCIES.get(command, []):
         _load_module(dep)
     old_argv = sys.argv[:]
@@ -56,7 +46,6 @@ def _run(command: str, args: list[str]) -> int:
     return 0
 
 def _help() -> None:
-    """Gibt eine kurze Uebersicht ueber die Dataset-Befehle aus."""
     print('Dataset-Befehle:')
     for name in MODULES:
         print(f"  {name}")
@@ -65,7 +54,6 @@ def _help() -> None:
     print('.venv/bin/python code/src/Dataset/datensatz.py audit --dataset-root daten/processed/musicgen_30s_aus_60s_clips')
 
 def main() -> int:
-    """CLI-Einstiegspunkt fuer Validierung, Audit und Clip-Erzeugung."""
     if len(sys.argv) < 2 or sys.argv[1] in {"-h", "--help"}:
         _help()
         return 0

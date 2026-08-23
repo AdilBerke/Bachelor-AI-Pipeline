@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Extrahiert technische Merkmale aus MusicGen-Datasets.
-
-Diese Datei ist der eigene Merkmal-Bereich des Projekts. Sie startet kein
-Training und erzeugt keine neue Musik. Stattdessen liest sie die
-`train/valid/test`-Manifeste eines Datasets, analysiert die referenzierten WAVs
-und speichert messbare Audio-Merkmale fuer Reports und Bachelorarbeit.
-"""
 
 from __future__ import annotations
 
@@ -34,12 +27,10 @@ SPLITS = ("train", "valid", "test")
 
 
 def now() -> str:
-    """Erzeugt einen lokalen Zeitstempel fuer Reports."""
     return datetime.now().isoformat(timespec="seconds")
 
 
 def rel(path: Path) -> str:
-    """Gibt Pfade moeglichst relativ zur Projektwurzel aus."""
     try:
         return str(path.resolve().relative_to(PROJECT_ROOT))
     except Exception:
@@ -47,13 +38,11 @@ def rel(path: Path) -> str:
 
 
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
-    """Schreibt JSON-Dateien einheitlich mit UTF-8 und Einrueckung."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def read_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
-    """Liest ein JSONL-Manifest zeilenweise."""
     with path.open("r", encoding="utf-8") as handle:
         for raw_line in handle:
             line = raw_line.strip()
@@ -62,7 +51,6 @@ def read_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
 
 
 def summarize_numbers(values: List[float]) -> Dict[str, Optional[float]]:
-    """Fasst numerische Messwerte fuer einen kompakten Report zusammen."""
     if not values:
         return {"min": None, "mean": None, "max": None}
     return {
@@ -73,7 +61,6 @@ def summarize_numbers(values: List[float]) -> Dict[str, Optional[float]]:
 
 
 def wav_features(path: Path) -> Dict[str, Any]:
-    """Berechnet einfache technische WAV-Merkmale ohne schwere ML-Modelle."""
     with wave.open(str(path), "rb") as handle:
         channels = int(handle.getnchannels())
         sample_width = int(handle.getsampwidth())
@@ -99,12 +86,6 @@ def wav_features(path: Path) -> Dict[str, Any]:
 
 
 def extract_features(dataset_root: Path, run_dir: Path, limit: int = 0) -> Dict[str, Any]:
-    """Extrahiert technische Merkmale aus den Manifest-Audios.
-
-    Pro Clip werden Dauer, Lautheit, Peak und einfache Signalmerkmale
-    gespeichert. Diese Daten helfen, Dataset-Qualitaet und Trainingsmaterial
-    nachvollziehbar zu dokumentieren.
-    """
 
     out_path = run_dir / "werte" / "audio_merkmale.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -167,7 +148,6 @@ def extract_features(dataset_root: Path, run_dir: Path, limit: int = 0) -> Dict[
 
 
 def parse_args() -> argparse.Namespace:
-    """Definiert die direkte Bedienung der Audio-Merkmale."""
     parser = argparse.ArgumentParser(description="Technische Audio-Merkmale aus einem MusicGen-Dataset extrahieren.")
     parser.add_argument("--dataset-root", default=str(DEFAULT_DATASET_ROOT))
     parser.add_argument("--run-dir", default="")
@@ -176,7 +156,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """CLI-Einstiegspunkt fuer die eigenstaendige Merkmal-Extraktion."""
     args = parse_args()
     dataset_root = Path(args.dataset_root).expanduser().resolve()
     run_dir = Path(args.run_dir).expanduser().resolve() if args.run_dir else (

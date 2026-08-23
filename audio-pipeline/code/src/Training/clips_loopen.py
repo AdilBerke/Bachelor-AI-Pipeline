@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""Loop-Fallback fuer lange Lofi-Audios aus bewerteten 30s-Clips.
-
-Die alte Longform-Logik hat alle 26 bis 30 Sekunden den Clip gewechselt.
-Das war technisch korrekt, klang musikalisch aber zu hektisch. Diese Version
-arbeitet deshalb mit laengeren Bloecken: Ein ausgewaehlter Clip bzw. ein
-Rhythmus wird standardmaessig auf etwa fuenf Minuten verlaengert und erst
-danach mit Crossfade zum naechsten Block ueberblendet.
-"""
 
 from __future__ import annotations
 
@@ -44,7 +36,6 @@ EPS = 1e-12
 
 @dataclass(frozen=True)
 class ClipInfo:
-    """Metadaten einer Audioquelle fuer die Blockplanung."""
 
     path: Path
     genre: str
@@ -152,7 +143,6 @@ def rel(path: Path) -> str:
 
 
 def actual_seed(requested_seed: int) -> int:
-    """Erzeugt einen echten Zufallsseed, wenn der Nutzer 0 uebergibt."""
 
     if requested_seed > 0:
         return requested_seed
@@ -168,12 +158,6 @@ def slug_to_genre(slug: str) -> str:
 
 
 def infer_genre_from_path(path: Path) -> tuple[str, str]:
-    """Leitet das Genre aus den Review-Dateinamen ab.
-
-    Beispiel:
-    sample_001__smooth_transition_structured_lofi.mp3
-    -> Smooth Transition Structured Lofi
-    """
 
     stem = path.stem
     if "__" in stem:
@@ -185,7 +169,6 @@ def infer_genre_from_path(path: Path) -> tuple[str, str]:
 
 
 def normalize_genre(value: str) -> str:
-    """Normalisiert freie Genre-Eingaben fuer einen toleranten Vergleich."""
 
     text = value.strip().lower().replace("-", " ").replace("_", " ")
     replacements = {
@@ -306,6 +289,8 @@ def append_with_crossfade(base: np.ndarray, clip: np.ndarray, crossfade_frames: 
     base_rms = rms(base[-fade_frames:])
     clip_rms = rms(adjusted_clip[:fade_frames])
     if base_rms > EPS and clip_rms > EPS:
+
+
         start_gain = min(10.0 ** (3.0 / 20.0), max(10.0 ** (-3.0 / 20.0), base_rms / clip_rms))
         release_frames = min(len(adjusted_clip), max(fade_frames, SAMPLE_RATE * 20))
         gain_curve = np.linspace(start_gain, 1.0, release_frames, dtype=np.float32)
@@ -324,7 +309,6 @@ def extend_clip_to_block(
     seed: int,
     tempo_start_phase: int,
 ) -> tuple[np.ndarray, LoopAnalyse, int]:
-    """Verlaengert einen Clip ueber automatisch gefundene Taktgrenzen."""
 
     return baue_loop_block(
         clip,
@@ -352,7 +336,6 @@ def apply_final_fade(audio: np.ndarray, fade_out_frames: int) -> np.ndarray:
 
 
 def apply_initial_fade(audio: np.ndarray, fade_in_frames: int) -> np.ndarray:
-    """Blendet die lange Audio am Anfang weich ein."""
 
     if fade_in_frames <= 0 or len(audio) <= fade_in_frames:
         return audio
@@ -365,7 +348,6 @@ def apply_initial_fade(audio: np.ndarray, fade_in_frames: int) -> np.ndarray:
 
 
 def limit_peak(audio: np.ndarray, peak_limit: float) -> np.ndarray:
-    """Verhindert Clipping, das in Crossfade-Ueberlappungen entstehen kann."""
 
     peak = float(np.max(np.abs(audio))) if len(audio) else 0.0
     if peak <= peak_limit or peak <= EPS:
@@ -432,7 +414,6 @@ def choose_next_clip(
     genre_modus: str,
     block_index: int,
 ) -> tuple[ClipInfo, int]:
-    """Waehlt einen Clip ohne Wiederholung, solange die Quelle ausreicht."""
 
     pool_reset = 0
     if not any(pools.values()):
@@ -466,12 +447,6 @@ def plan_block_net_frames(
     target_frames: int,
     source_count: int,
 ) -> tuple[List[int], float]:
-    """Plant die hoerbaren Blocklaengen vorab.
-
-    Dadurch entstehen am Ende keine winzigen Restbloecke. Wenn Wiederholungen
-    nicht erlaubt sind, wird die Mindestlaenge automatisch erhoeht, damit die
-    komplette Zieldauer mit dem vorhandenen Quellenpool abgedeckt werden kann.
-    """
 
     requested_min_sec = max(1.0, args.block_sekunden)
     if not args.wiederholung_erlauben and source_count > 0:
@@ -483,6 +458,8 @@ def plan_block_net_frames(
     min_frames = int(round(effective_min_sec * SAMPLE_RATE))
     variation = max(0.0, args.block_variation_sekunden)
     if variation <= 0.0:
+
+
         block_count = max(1, int(round(target_frames / max(1, min_frames))))
         basis = target_frames // block_count
         rest = target_frames % block_count
@@ -571,6 +548,8 @@ def main() -> int:
     loop_analyses: Dict[Path, Dict[str, Any]] = {}
 
     for block_index, net_block_frames in enumerate(planned_net_blocks):
+
+
         audio_block_frames = net_block_frames if len(built) == 0 else net_block_frames + crossfade_frames
         selected, reset_count = choose_next_clip(
             pools=pools,

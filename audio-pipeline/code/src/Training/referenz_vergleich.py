@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-"""Vergleicht erzeugte MusicGen-Audios mit guten MP3-Referenzclips.
-
-Zweck der Datei:
-- gute Trainingsclips aus den lokalen MP3s als Referenz auswerten
-- erzeugte MusicGen-/LoRA-Audios dagegen messen
-- sichtbar machen, warum die generierte Qualitaet nicht wie die MP3s klingt
-
-Die Datei startet kein Training und erzeugt keine Audios. Sie ist eine reine
-Diagnose fuer die Bachelorarbeit und fuer die naechsten Modellentscheidungen.
-"""
 
 from __future__ import annotations
 
@@ -80,7 +70,6 @@ METRIK_FELDER = (
 
 @dataclass
 class AudioEintrag:
-    """Beschreibt eine echte Datei oder einen Abschnitt einer langen Datei."""
 
     path: Path
     genre: str
@@ -93,7 +82,6 @@ class AudioEintrag:
 
 
 def projektwurzel() -> Path:
-    """Findet die Projektwurzel ueber die vier Hauptordner."""
 
     for parent in Path(__file__).resolve().parents:
         if (parent / "code").exists() and (parent / "daten").exists() and (parent / "training").exists():
@@ -105,7 +93,6 @@ PROJECT_ROOT = projektwurzel()
 
 
 def normalisiere_genre(value: Any) -> str:
-    """Macht aus freien Genre-Namen stabile interne Genre-Schluessel."""
 
     text = str(value or "").lower().strip()
     text = text.replace("lo-fi", "lofi").replace("-", " ").replace("_", " ")
@@ -144,7 +131,6 @@ def normalisiere_genre(value: Any) -> str:
 
 
 def loese_pfad(path_text: Any) -> Path:
-    """Loest relative Pfade gegen die Projektwurzel auf."""
 
     path = Path(str(path_text or "")).expanduser()
     if not path.is_absolute():
@@ -153,7 +139,6 @@ def loese_pfad(path_text: Any) -> Path:
 
 
 def lese_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Liest ein JSONL-Manifest und ignoriert defekte Leerzeilen."""
 
     rows: list[dict[str, Any]] = []
     if not path.exists():
@@ -172,7 +157,6 @@ def lese_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def sammle_referenzen(referenz_root: Path, pro_genre: int) -> list[AudioEintrag]:
-    """Waehlt gute Referenzclips aus dem geprueften Trainingsdataset."""
 
     rows: list[dict[str, Any]] = []
     for split in ("train", "valid", "test"):
@@ -188,6 +172,7 @@ def sammle_referenzen(referenz_root: Path, pro_genre: int) -> list[AudioEintrag]
 
     eintraege: list[AudioEintrag] = []
     for genre in sorted(gruppen):
+
         sortierte = sorted(
             gruppen[genre],
             key=lambda item: (
@@ -229,7 +214,6 @@ def sammle_referenzen(referenz_root: Path, pro_genre: int) -> list[AudioEintrag]
 
 
 def csv_bewertung_mapping(root: Path) -> dict[str, str]:
-    """Liest Genre-Namen aus einer passenden bewertung.csv, falls vorhanden."""
 
     mapping: dict[str, str] = {}
     kandidaten = [root / "bewertung.csv", root.parent / "bewertung.csv"]
@@ -250,7 +234,6 @@ def csv_bewertung_mapping(root: Path) -> dict[str, str]:
 
 
 def inferiere_genre(path: Path, mapping: dict[str, str]) -> str:
-    """Erkennt das Genre aus Dateiname, Bewertung oder Ordnername."""
 
     name = path.name
     stem = path.stem
@@ -262,7 +245,6 @@ def inferiere_genre(path: Path, mapping: dict[str, str]) -> str:
 
 
 def audio_dateien(root: Path) -> list[Path]:
-    """Sammelt Audio-Dateien unter einem Ordner oder gibt die Datei selbst."""
 
     if root.is_file() and root.suffix.lower() in {".mp3", ".wav", ".flac", ".m4a"}:
         return [root]
@@ -278,7 +260,6 @@ def audio_dateien(root: Path) -> list[Path]:
 
 
 def finde_neuesten_audio_ordner() -> Path | None:
-    """Findet den neuesten Bewertungs-Audioordner mit echten Audiodateien."""
 
     root = PROJECT_ROOT / "training" / "bewertungen" / "musicgen"
     if not root.exists():
@@ -299,7 +280,6 @@ def finde_neuesten_audio_ordner() -> Path | None:
 
 
 def sammle_generierte(generiert_root: Path | None, limit: int, segment_sekunden: float) -> list[AudioEintrag]:
-    """Sammelt erzeugte Audios und teilt lange Dateien in pruefbare Segmente."""
 
     root = generiert_root or finde_neuesten_audio_ordner()
     if root is None:
@@ -355,7 +335,6 @@ def sammle_generierte(generiert_root: Path | None, limit: int, segment_sekunden:
 
 
 def schaetze_bpm(audio: np.ndarray) -> float:
-    """Schaetzt Tempo grob aus Energie-Impulsen ohne externe Abhaengigkeiten."""
 
     if len(audio) < SAMPLE_RATE * 8:
         return 0.0
@@ -386,6 +365,7 @@ def schaetze_bpm(audio: np.ndarray) -> float:
         return 0.0
     lag = int(np.argmax(window)) + min_lag
     bpm = 60.0 * frames_per_second / max(1, lag)
+
     while bpm < 65.0:
         bpm *= 2.0
     while bpm > 120.0:
@@ -394,7 +374,6 @@ def schaetze_bpm(audio: np.ndarray) -> float:
 
 
 def audio_kennwerte(audio: np.ndarray) -> dict[str, float]:
-    """Berechnet technische Kennwerte fuer Referenz- und generierte Clips."""
 
     duration = len(audio) / float(SAMPLE_RATE)
     peak = float(np.max(np.abs(audio))) if len(audio) else 0.0
@@ -426,7 +405,6 @@ def audio_kennwerte(audio: np.ndarray) -> dict[str, float]:
 
 
 def analysiere_eintraege(eintraege: Iterable[AudioEintrag]) -> list[dict[str, Any]]:
-    """Dekodiert Audios und gibt flache Report-Zeilen zurueck."""
 
     rows: list[dict[str, Any]] = []
     for eintrag in eintraege:
@@ -462,14 +440,12 @@ def analysiere_eintraege(eintraege: Iterable[AudioEintrag]) -> list[dict[str, An
 
 
 def median(values: list[float]) -> float:
-    """Robuste Median-Hilfe fuer leere Listen."""
 
     clean = [float(value) for value in values if value is not None and not math.isnan(float(value))]
     return round(float(np.median(clean)), 5) if clean else 0.0
 
 
 def referenz_statistik(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
-    """Berechnet Referenz-Mediane pro Genre."""
 
     stats: dict[str, dict[str, float]] = {}
     gruppen: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -485,13 +461,11 @@ def referenz_statistik(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]
 
 
 def problem_text(probleme: list[str]) -> str:
-    """Gibt eine kurze lesbare Problemzusammenfassung aus."""
 
     return "; ".join(probleme) if probleme else "technisch nahe an Referenz"
 
 
 def vergleiche_mit_referenz(row: dict[str, Any], stats: dict[str, dict[str, float]]) -> dict[str, Any]:
-    """Vergleicht eine generierte Zeile mit dem passenden Genre-Referenzprofil."""
 
     genre = str(row.get("genre") or "general_lofi")
     ref = stats.get(genre) or stats.get("general_lofi") or {}
@@ -584,7 +558,6 @@ def vergleiche_mit_referenz(row: dict[str, Any], stats: dict[str, dict[str, floa
 
 
 def diagramm_daten(referenz_rows: list[dict[str, Any]], vergleich_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Erstellt kompakte Diagrammdaten fuer Referenz vs. Generierung."""
 
     rows: list[dict[str, Any]] = []
     gruppen: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
@@ -609,7 +582,6 @@ def diagramm_daten(referenz_rows: list[dict[str, Any]], vergleich_rows: list[dic
 
 
 def schreibe_optional_diagramm(rows: list[dict[str, Any]], output_path: Path) -> str:
-    """Schreibt ein kleines PNG, wenn matplotlib lokal vorhanden ist."""
 
     try:
         import matplotlib.pyplot as plt
@@ -654,7 +626,6 @@ def zusammenfassung(
     referenz_root: Path,
     generiert_root: Path | None,
 ) -> dict[str, Any]:
-    """Erstellt einen JSON-kompatiblen Ergebnisbericht."""
 
     problem_counter: Counter[str] = Counter()
     for row in vergleich:
@@ -685,7 +656,6 @@ def zusammenfassung(
 
 
 def schreibe_bericht(report: dict[str, Any], output_dir: Path) -> Path:
-    """Schreibt eine kurze lesbare Textzusammenfassung."""
 
     lines = [
         "Referenzvergleich",
@@ -717,7 +687,6 @@ def schreibe_bericht(report: dict[str, Any], output_dir: Path) -> Path:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """CLI fuer den lokalen Vergleich."""
 
     default_output = PROJECT_ROOT / "training" / "musicgen" / "referenzvergleich" / datetime.now().strftime(
         "vergleich_%Y%m%d_%H%M%S"
@@ -742,7 +711,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Fuehrt den Vergleich aus und schreibt CSV/JSON/Diagrammdaten."""
 
     args = parse_args(argv)
     referenz_root = loese_pfad(args.referenz_root)

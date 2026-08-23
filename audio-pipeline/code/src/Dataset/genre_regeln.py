@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-"""Gemeinsame Genre- und Quellenregeln fuer MusicGen-Datasets.
-
-Die Import-Manifeste enthalten oft mehrere Genrewoerter in Titel, Caption und
-Dateipfad. Eine einzige zusammengefuegte Keyword-Suche kann deshalb zum
-Beispiel einen Study-Lofi-Import mit dem Wort ``jazzy`` faelschlich als Jazz
-einordnen. Dieses Modul priorisiert explizite Metadaten und den vom Importer
-gesetzten Dateinamen-Prefix. Ausserdem stellt es eine quellengetrennte
-Train/Valid/Test-Auswahl bereit, damit Fenster derselben MP3 nie in mehreren
-Splits landen.
-"""
 
 from __future__ import annotations
 
@@ -211,13 +201,11 @@ GENRE_BLOCK_TERMS = {
 
 
 def _genre_config_path() -> Path:
-    """Liefert die zentrale Genre-Konfiguration, falls sie vorhanden ist."""
 
     return Path(__file__).resolve().parents[3] / "code" / "configs" / "lora_genres.json"
 
 
 def _str_liste(value: Any) -> tuple[str, ...]:
-    """Normalisiert JSON-Werte defensiv zu einer Tuple aus Strings."""
 
     if isinstance(value, str):
         return (value,)
@@ -227,7 +215,6 @@ def _str_liste(value: Any) -> tuple[str, ...]:
 
 
 def _lade_genre_config() -> None:
-    """Erlaubt neue LoRA-Genres ueber code/configs/lora_genres.json."""
 
     global STANDARD_GENRES, GENRE_LABELS, GENRE_CAPTIONS, GENRE_PREFIXE, GENRE_KEYWORDS, GENRE_REQUIRED_TERMS, GENRE_BLOCK_TERMS
     path = _genre_config_path()
@@ -275,7 +262,6 @@ _lade_genre_config()
 
 
 def normalisiere(text: Any) -> str:
-    """Normalisiert Text fuer robuste, aber nachvollziehbare Regeln."""
 
     value = str(text or "").lower()
     value = value.replace("lo-fi", "lofi")
@@ -285,7 +271,6 @@ def normalisiere(text: Any) -> str:
 
 
 def quellentext(row: dict[str, Any]) -> str:
-    """Sammelt nur echte Quellenfelder fuer die musikalische Quellenpruefung."""
 
     parts: list[str] = []
     for key in (
@@ -307,7 +292,6 @@ def quellentext(row: dict[str, Any]) -> str:
 
 
 def _block_prueftext(text: str) -> str:
-    """Entfernt erlaubte Negationen wie ``no vocals`` vor der Blocklisten-Pruefung."""
 
     result = f" {text} "
     for phrase in (
@@ -325,7 +309,6 @@ def _block_prueftext(text: str) -> str:
 
 
 def _enthaelt_begriff(text: str, term: str) -> bool:
-    """Prueft Begriffe mit Wortgrenzen, damit ``r b`` nicht in ``guitar beats`` greift."""
 
     term_norm = normalisiere(term)
     if not term_norm:
@@ -335,7 +318,6 @@ def _enthaelt_begriff(text: str, term: str) -> bool:
 
 
 def quelle_hat_lofi_bezug(row: dict[str, Any]) -> tuple[bool, str]:
-    """Prueft hart, ob eine Quelle ueberhaupt LoFi-Bezug besitzt."""
 
     text = quellentext(row)
     if not text:
@@ -350,7 +332,6 @@ def quelle_hat_lofi_bezug(row: dict[str, Any]) -> tuple[bool, str]:
 
 
 def quelle_passt_zum_genre(row: dict[str, Any], genre: str | None = None) -> tuple[bool, str]:
-    """Prueft, ob eine LoFi-Quelle auch zum gesetzten Untergenre passt."""
 
     ok, reason = quelle_hat_lofi_bezug(row)
     if not ok:
@@ -367,7 +348,6 @@ def quelle_passt_zum_genre(row: dict[str, Any], genre: str | None = None) -> tup
 
 
 def _direktes_genre(row: dict[str, Any]) -> str:
-    """Liest nur bereits explizit gesetzte Zielgenre-Felder."""
 
     for key in ("lora_genre", "primary_genre"):
         value = normalisiere(row.get(key)).replace(" ", "_")
@@ -381,7 +361,6 @@ def _direktes_genre(row: dict[str, Any]) -> str:
 
 
 def _basename_texte(row: dict[str, Any]) -> list[str]:
-    """Liefert Dateinamen, deren Prefix vom lokalen Importer stammt."""
 
     values: list[str] = []
     for key in ("source_audio_path", "source_mp3", "source_file", "path", "name"):
@@ -392,7 +371,6 @@ def _basename_texte(row: dict[str, Any]) -> list[str]:
 
 
 def _prefix_genre(text: str) -> str:
-    """Erkennt ein Genre nur am Anfang eines Importnamens."""
 
     for genre, prefixes in GENRE_PREFIXE.items():
         if any(text == prefix or text.startswith(prefix + " ") for prefix in prefixes):
@@ -401,14 +379,6 @@ def _prefix_genre(text: str) -> str:
 
 
 def erkenne_genre(row: dict[str, Any]) -> str:
-    """Ordnet eine Manifestzeile mit klarer Prioritaet einem Genre zu.
-
-    Prioritaet:
-    1. explizites ``lora_genre``/``primary_genre``;
-    2. Prefix der Quell-MP3 bzw. des Importpfads;
-    3. Prefix der Caption;
-    4. enge Keyword-Regel als letzter Fallback.
-    """
 
     direct = _direktes_genre(row)
     if direct:
@@ -437,7 +407,6 @@ def erkenne_genre(row: dict[str, Any]) -> str:
 
 
 def quellen_schluessel(row: dict[str, Any], projektwurzel: Path | None = None) -> str:
-    """Ermittelt die echte Ursprungsdatei fuer Deduplizierung und Splits."""
 
     raw_audio = row.get("source_audio_path") or row.get("source_mp3")
     if raw_audio:
@@ -462,7 +431,6 @@ def quellen_schluessel(row: dict[str, Any], projektwurzel: Path | None = None) -
 
 
 def _ziel_je_split(target_count: int) -> dict[str, int]:
-    """Berechnet exakt 90/5/5, ohne Clips zu verlieren."""
 
     valid = max(1, round(target_count * 0.05)) if target_count >= 20 else 0
     test = max(1, round(target_count * 0.05)) if target_count >= 20 else 0
@@ -476,7 +444,6 @@ def _round_robin(
     max_per_source: int,
     counts: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
-    """Nimmt abwechselnd Clips aus Quellen, damit keine MP3 dominiert."""
 
     selected: list[dict[str, Any]] = []
     counts = counts if counts is not None else {source: 0 for source in sources}
@@ -506,12 +473,6 @@ def waehle_quellengetrennt(
     seed: int,
     projektwurzel: Path | None = None,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
-    """Waehlt ein Genre balanciert und ohne Quellenleck zwischen Splits.
-
-    Valid und Test erhalten jeweils eine eigene Ursprungsdatei. Alle restlichen
-    Quellen bilden Train. Wenn die lokalen Quellen nicht fuer das Ziel reichen,
-    wird nur der ehrlich erreichbare Bestand zurueckgegeben.
-    """
 
     rng = random.Random(seed)
     per_source: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -587,6 +548,7 @@ def waehle_quellengetrennt(
         )
         split_sources["train"] = sorted(sources)
 
+
     backfill_by_split = {"train": 0, "valid": 0, "test": 0}
     while sum(len(items) for items in result.values()) < target_count:
         progress = False
@@ -641,7 +603,6 @@ def bereinige_manifestzeile(
     projektwurzel: Path | None = None,
     dataset_marker: str,
 ) -> dict[str, Any]:
-    """Setzt konsistente Genre-, Caption- und Herkunftsfelder."""
 
     clean = {key: value for key, value in row.items() if not key.startswith("_")}
     clean["split"] = split

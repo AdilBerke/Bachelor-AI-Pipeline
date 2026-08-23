@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Optionale Nachbearbeitung fuer generierte MusicGen-Audios.
-
-Diese Stufe laeuft bewusst nach der MusicGen-/LoRA-Generierung. Sie veraendert
-keine LoRA-Adapter, keine Checkpoints und keine Trainingsdaten. Das Original-
-Audio bleibt erhalten; bearbeitete Dateien und Reports werden in einen eigenen
-Ausgabeordner geschrieben.
-"""
 
 from __future__ import annotations
 
@@ -36,7 +29,6 @@ EPS = 1e-12
 
 @dataclass(frozen=True)
 class FilterProfil:
-    """Filterwerte fuer eine vorsichtige, reproduzierbare Nachbearbeitung."""
 
     highpass_hz: float
     lowpass_hz: float
@@ -166,7 +158,6 @@ def require_tool(name: str) -> str:
 
 
 def find_command(names: Iterable[str]) -> Optional[Path]:
-    """Findet CLI-Tools auch dann, wenn `.venv/bin` nicht im PATH liegt."""
 
     for name in names:
         direct = shutil.which(name)
@@ -179,7 +170,6 @@ def find_command(names: Iterable[str]) -> Optional[Path]:
 
 
 def optional_tools() -> Dict[str, Dict[str, Any]]:
-    """Erkennt lokale Zusatztools, ohne etwas herunterzuladen."""
 
     mapping = {
         "ffmpeg": (["ffmpeg"], []),
@@ -385,7 +375,6 @@ def analyse_audio(input_path: Path, work_dir: Path, label: str) -> Dict[str, Any
 
 
 def build_filter_chain(profile: FilterProfil) -> str:
-    """Erzeugt eine konservative ffmpeg-Filterkette fuer Musik."""
 
     return ",".join(
         [
@@ -451,7 +440,6 @@ def render_standard_postprocessing(input_path: Path, wav_out: Path, mp3_out: Pat
 
 
 def try_deepfilter(input_path: Path, output_dir: Path, tools: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """Optionaler DeepFilterNet-Haken. Standardfilter bleiben die sichere Basis."""
 
     if not tools["deepfilternet"]["available"]:
         return {"used": False, "reason": "DeepFilterNet CLI 'deep-filter' nicht lokal gefunden."}
@@ -461,6 +449,8 @@ def try_deepfilter(input_path: Path, output_dir: Path, tools: Dict[str, Dict[str
             "used": False,
             "reason": "DeepFilterNet Python-Paket gefunden, aber kein lokaler CLI-Befehl in PATH oder .venv/bin.",
         }
+
+
     work_dir = output_dir / "deepfilternet"
     work_dir.mkdir(parents=True, exist_ok=True)
     prepared = work_dir / "input_48k.wav"

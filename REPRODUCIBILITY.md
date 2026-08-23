@@ -5,8 +5,14 @@ einer neuen Maschine vollständig nachzubauen: Audio-Pipeline (MusicGen + LoRA),
 (LTX-Video + LoRA) und die gemeinsame Studio-Website.
 
 Alle Versions- und Hardwareangaben sind aus der tatsächlich genutzten Entwicklungsumgebung
-übernommen (Stand siehe [`audio-pipeline/requirements.txt`](audio-pipeline/requirements.txt)), keine
-Schätzungen.
+übernommen (Stand 2026-08-23, siehe [`audio-pipeline/requirements.txt`](audio-pipeline/requirements.txt)),
+keine Schätzungen.
+
+**Aktueller Referenzstand:** Das aktive Audio-Modell ist LoRA-Adapter Step 625 (trainiert auf
+5000 genrebalancierten Clips, siehe Schritt 4f). Damit wurden für alle 5 Genres je eine
+20-Minuten-Kontrollaudio erzeugt — das sind aktuell auch die einzigen auf der Studio-Website
+sichtbaren Audios (`/api/audio` filtert bewusst auf den `Kontrolle_`-Namensprefix, ältere
+Test-/Entwicklungsläufe bleiben auf der Platte, sind aber ausgeblendet).
 
 **Bewusst nicht Teil dieser Anleitung:** die konkreten YouTube-MP3/Video-Rohquellen und die daraus
 gebauten Trainingsdatensätze. Das sind fremde, urheberrechtlich geschützte Inhalte, die nicht
@@ -133,6 +139,12 @@ Code zum Trainieren (Schritt 8). Der aktuell freigegebene, menschlich bewertete 
 [huggingface.co/AdilBerke/lofi-musicgen-lora](https://huggingface.co/AdilBerke/lofi-musicgen-lora)
 (Modellkarte mit vollständiger Trainingskonfiguration und SHA256-Prüfsumme)
 
+> **Live geprüft, Stand 2026-08-23:** Diese Seite antwortet aktuell mit HTTP 401 (privat/nicht
+> öffentlich abrufbar). Für einen echten Nachbau durch Dritte muss die Sichtbarkeit im
+> Hugging-Face-Repo zuerst auf "Public" gestellt werden — sonst schlägt der Download unten ohne
+> eigenes Hugging-Face-Login mit Zugriff auf das Repo fehl. Alternative ohne Hugging Face: die
+> 109-MB-Datei manuell kopieren (USB-Stick/Cloud) an denselben Zielpfad.
+
 ```bash
 audio-pipeline/.venv/bin/huggingface-cli download AdilBerke/lofi-musicgen-lora lora_adapter.pt \
   --local-dir audio-pipeline/training/musicgen/lora_training/checkpoints/step_000625/
@@ -215,7 +227,7 @@ Prüft Datensatz, Modellpfade und schreibt den geplanten Trainingsbefehl, ohne z
 erster Nachweis, dass Umgebung, Modelle und Datensatz-Pfade korrekt zusammenspielen.
 
 Weitere Befehle (vollständige Liste inkl. Longform-Generierung und Referenzvergleich in
-[`audio-pipeline/README.md`](audio-pipeline/README.md#15-typische-arbeitsabläufe)):
+[`audio-pipeline/README.md`](audio-pipeline/README.md#lokale-befehle)):
 
 ```bash
 audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --status

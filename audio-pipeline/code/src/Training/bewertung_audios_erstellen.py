@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""Erstellt immer dasselbe MusicGen-Bewertungspaket mit 8 Prompts.
-
-Diese Datei ist der kurze Einstieg nach einem LoRA-Trainingsblock. Sie startet
-kein Training, sondern ruft die vorhandene Review-Generierung aus
-`musicgen_steuerung.py` auf. Dadurch entstehen wie in den bisherigen
-Durchgaengen:
-
-- 8 finale MP3-Audios im Ordner `audio/`
-- `bewertung.csv` fuer die menschliche Bewertung
-- `kandidaten_pruefung.csv` mit technischer Kandidatenpruefung
-- `generation_manifest.json` zur Nachvollziehbarkeit
-
-Standardmaessig wird der neueste echte LoRA-Checkpoint genutzt. Test- und
-Smoke-Runs werden dabei ignoriert.
-"""
 
 from __future__ import annotations
 
@@ -58,7 +43,6 @@ from audio_veroeffentlichen import audio_dateien_aus_eingabe, veroeffentliche_au
 
 
 def parse_args() -> argparse.Namespace:
-    """Definiert die kurze CLI fuer wiederholbare Review-Durchgaenge."""
 
     parser = argparse.ArgumentParser(description="Erstellt 8 feste MusicGen-LoRA-Bewertungsaudios.")
     parser.add_argument(
@@ -104,7 +88,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def loese_adapter(value: str) -> Path:
-    """Loest `best`, `latest`/`auto` oder einen direkten Pfad in einen Checkpoint auf."""
 
     normalized = str(value or "").strip().lower()
     if normalized in {"", "best", "bester", "lora", "stabil"}:
@@ -135,7 +118,6 @@ def loese_adapter(value: str) -> Path:
 
 
 def standard_run_name(adapter_path: Path) -> str:
-    """Vergibt einen sprechenden Standardnamen, wenn die Datei direkt gestartet wird."""
 
     try:
         if adapter_path.resolve() == STANDARD_LORA_ADAPTER.resolve():
@@ -149,7 +131,6 @@ def standard_run_name(adapter_path: Path) -> str:
 
 
 def freier_run_name(output_root: Path, run_name: str) -> str:
-    """Verhindert, dass ein alter Vergleichsordner den naechsten Start blockiert."""
 
     if not run_name or not (output_root / run_name).exists():
         return run_name
@@ -162,7 +143,6 @@ def freier_run_name(output_root: Path, run_name: str) -> str:
 
 
 def baue_befehl(args: argparse.Namespace, adapter_path: Path) -> list[str]:
-    """Erstellt den eigentlichen Review-Befehl."""
 
     command = [
         str(PYTHON),
@@ -201,7 +181,6 @@ def baue_befehl(args: argparse.Namespace, adapter_path: Path) -> list[str]:
 
 
 def naechster_log_pfad(output_root: Path, run_name: str) -> Path:
-    """Legt fest, wohin die volle Review-Ausgabe geschrieben wird."""
 
     zeit = datetime.now().strftime("%Y%m%d_%H%M%S")
     label = re.sub(r"[^a-zA-Z0-9_.-]+", "_", run_name.strip()) if run_name else "bewertung_audios"
@@ -209,7 +188,6 @@ def naechster_log_pfad(output_root: Path, run_name: str) -> Path:
 
 
 def parse_finales_json(text: str) -> dict[str, object]:
-    """Liest das finale JSON des Review-Unterbefehls aus der Logdatei."""
 
     marker = '{\n  "pack_root"'
     start = text.rfind(marker)
@@ -227,7 +205,6 @@ def parse_finales_json(text: str) -> dict[str, object]:
 
 
 def fuehre_minimal_aus(command: list[str], *, output_root: Path, run_name: str) -> tuple[int, Path, dict[str, object]]:
-    """Fuehrt die Review-Generierung aus und haelt das Terminal knapp."""
 
     log_path = naechster_log_pfad(output_root, run_name)
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -284,7 +261,6 @@ def fuehre_minimal_aus(command: list[str], *, output_root: Path, run_name: str) 
 
 
 def push_testaudios(pack_root: str | object, run_name: str) -> dict[str, object]:
-    """Pusht alle finalen MP3/WAV-Testaudios eines Bewertungsordners."""
 
     if not pack_root:
         return {"status": "skipped", "reason": "kein Bewertungsordner im Report"}
@@ -305,7 +281,6 @@ def push_testaudios(pack_root: str | object, run_name: str) -> dict[str, object]
 
 
 def main() -> int:
-    """Startet die feste 8-Prompt-Review-Generierung."""
 
     args = parse_args()
     if args.seed <= 0:

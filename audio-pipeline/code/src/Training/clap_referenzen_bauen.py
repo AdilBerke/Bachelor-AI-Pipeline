@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""Baut eine echte Referenzliste fuer genre_pruefung.py (CLAP-Genre-Check).
-
-Die CLAP-basierte Genre-Pruefung (genre_pruefung.py) braucht eine
-`bewertung.csv` mit als "Gut" markierten Referenzclips pro Genre, um
-Genre-Zentren zu berechnen. Der bisherige Standardordner
-(training/bewertungen/musicgen/lora_review_001) stammt aus der
-abgeschafften manuellen Human-Review-Funktion und wurde nie ausgefuellt
-(Status-Spalte durchgehend leer) - die Pruefung war dadurch unbenutzbar
-und musste ueberall per --genre-pruefung-deaktivieren abgeschaltet werden.
-
-Dieses Skript baut stattdessen eine echte Referenzliste direkt aus den
-bereits genre-sortierten LoRA-Trainingsclips (daten/processed/lora_training),
-verteilt ueber moeglichst viele unabhaengige Quellen pro Genre, und schreibt
-sie als bewertung.csv (mit absoluten Pfaden, keine Audiokopien noetig).
-"""
 
 from __future__ import annotations
 
@@ -51,7 +36,6 @@ def _manifest_zeilen(referenz_root: Path) -> List[Dict[str, Any]]:
 
 
 def _diverse_auswahl(rows: List[Dict[str, Any]], anzahl: int) -> List[Dict[str, Any]]:
-    """Waehlt Clips reihum ueber moeglichst viele Quellen (source_id) aus."""
 
     nach_quelle: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for row in rows:

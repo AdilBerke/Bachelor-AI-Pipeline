@@ -1,194 +1,81 @@
-# MusicGen-LoRA-Pipeline zur automatisierten Lo-Fi-Musikgenerierung
+# MusicGen- und LTX-Lo-Fi-Projekt
 
-Stand: 2026-08-15
+Stand: 2026-08-22
 
-## 1. Zielsetzung
+Diese README ist der aktuelle Einstiegspunkt und das Arbeitsgedaechtnis fuer
+das Projekt. Sie fasst die wichtigsten Entscheidungen aus Code, Dokumentation
+und bisherigen Sitzungsnotizen zusammen, damit neue Arbeit nicht wieder bei
+Null beginnt.
 
-Dieses Projekt implementiert eine lokale Pipeline zur automatisierten Generierung,
-Bewertung und Verwaltung von Lo-Fi-Musik auf Basis von MusicGen und LoRA. Der
-Anwendungsfall ist eine Bachelorarbeit zur Frage, wie Lo-Fi-Musikdaten
-systematisch erfasst, aufbereitet, modellseitig angepasst und anschließend als
-lange, bewertbare Audiodateien erzeugt werden können.
+Wichtig: Einige Detaildokumente sind aelter und koennen in Einzelfragen
+ueberholt sein. Wenn README, Code und alte Notizen voneinander abweichen, gilt
+zuerst der aktuelle Code, danach diese README, danach die Detaildokumente.
 
-Die Pipeline folgt dabei einem reproduzierbaren Ablauf:
+**Projekt nachbauen:** Schritt-fuer-Schritt-Anleitung (Code, Basismodelle,
+trainiertes LoRA, Frontend, Backend) in [`NACHBAUANLEITUNG.md`](NACHBAUANLEITUNG.md).
+
+## Kurzueberblick
+
+Das Repository enthaelt zwei fachlich getrennte, aber thematisch verbundene
+Bachelor-/Masterarbeits-Pipelines:
+
+| Bereich | Zweck | Aktueller Ort |
+|---|---|---|
+| Audio | Lo-Fi-Musik mit MusicGen Melody Large, LoRA, Longform-Generierung und Bewertung | `code/`, `daten/`, `training/`, `dokumentation/aktuell/` |
+| Video/GIF | Lo-Fi-Anime-Loops mit LTX-Video 13B, LoRA, Szenarien, GIF/MP4-Postprocessing | `Bachelorarbeit/lofi_pipeline/`, `Bachelorarbeit/pipeline/`, `dokumentation/video_gif/` |
+
+Die beiden Pipelines duerfen nicht vermischt werden. Die Audio-Pipeline ist der
+aktive Hauptfokus im Root-Projekt. Die Video/GIF-Pipeline ist ein separater
+Projektteil mit eigener Struktur, eigenen Skripten und eigenen Trainingslaeufen.
+
+## Wichtigste Projektregeln
+
+- Rechenintensive Trainings, Downloads und lange Generierungen werden nicht
+  automatisch gestartet.
+- Grosse Audiodateien, Rohdaten, Modellgewichte und Checkpoints bleiben lokal,
+  ausser sie werden ausdruecklich freigegeben.
+- Bestehende nicht selbst erzeugte Aenderungen im Git-Working-Tree nicht
+  zuruecksetzen.
+- Checkpoints sind Kandidaten, bis sie bewertet und bewusst freigegeben wurden.
+- Alte Ordner wie `bewertungen/` oder Teile unter `Bachelorarbeit/` koennen
+  Altdaten oder fremde Projektteile enthalten und werden nicht ungefragt
+  geloescht.
+
+## Aktuelle Struktur
+
+| Pfad | Bedeutung |
+|---|---|
+| `code/start.py` | zentraler CLI-Einstieg fuer Audio-Pipeline, Status, Suche, Dataset, Training, Bewertung und Generierung |
+| `code/src/Crawler/` | Quellen suchen, Top-10-Listen und Audio-/MP3-Import |
+| `code/src/Dataset/` | Clip-Auswahl, Genre-Regeln, Zieldatensatz, Qualitaetspruefung |
+| `code/src/Merkmale/` | technische Audio-Feature-Extraktion |
+| `code/src/Training/` | MusicGen-Generierung, LoRA-Training, Looping, Bewertung, Referenzvergleich |
+| `code/src/Pipeline/web_api.py` | lokale HTTP-API fuer Studio/Website-Jobs |
+| `daten/processed/lora_training/` | aktives MusicGen-LoRA-Trainingsdataset |
+| `training/musicgen/lora_training/` | aktiver LoRA-Lauf bzw. freigegebener Adapterstand |
+| `training/ausgaben/musicgen_generiert/` | generierte Longform-Audios und Reports |
+| `training/bewertungen/musicgen/` | Testaudio-, Longform- und Review-Bewertungen |
+| `dokumentation/aktuell/` | aktuelle Audio-Dokumentation fuer Struktur, Ablauf, Code, Setup und Prozess |
+| `Bachelorarbeit/lofi_pipeline/` | echte Video/GIF-Pipeline mit LTX-Video-Szenarien |
+| `tools/LTX-Video-Trainer/` | eingebundener LTX-Video-Trainer |
+| `tools/rife-ncnn-vulkan/` | Frame-Interpolation fuer Video/GIF-Postprocessing |
+
+## Audio-Pipeline
+
+Ziel der Audio-Pipeline ist eine reproduzierbare lokale Kette:
 
 1. Quellen suchen oder importieren.
-2. Rohdaten in standardisierte Audioclips überführen.
-3. Audio-Merkmale extrahieren und Qualitätskriterien prüfen.
-4. Ein genrebalanciertes Trainingsdataset für LoRA aufbauen.
-5. MusicGen mit LoRA lokal anpassen oder fortsetzen.
+2. Audio in standardisierte 30-Sekunden-Clips ueberfuehren.
+3. Clips technisch pruefen und genrebezogen organisieren.
+4. Ein source-disjoint, genrebalanciertes LoRA-Dataset bauen.
+5. MusicGen Melody Large ueber LoRA anpassen.
 6. Testaudios erzeugen und bewerten.
-7. Aus kurzen MusicGen-Clips lange Audiodateien erzeugen.
-8. Die erzeugten Audios automatisch auswerten.
-9. Alle relevanten Schritte über eine lokale Website steuerbar machen.
-10. Prozess- und Ergebnisberichte für die wissenschaftliche Dokumentation sichern.
+7. Kurze MusicGen-Kandidaten zu Longform-Audios verbinden.
+8. Uebergaenge, Loop-Stabilitaet und technische Qualitaet pruefen.
+9. Finale Audios mit Referenzstandards vergleichen.
+10. Reports fuer die wissenschaftliche Dokumentation sichern.
 
-Lange Trainingsläufe und externe Downloads werden nicht automatisch gestartet.
-Rechenintensive Schritte müssen bewusst über CLI oder Website ausgelöst werden.
-
-## 2. Projektstruktur
-
-Die aktive Projektstruktur ist kompakt gehalten:
-
-| Ordner | Funktion |
-|---|---|
-| `code/` | Quellcode der lokalen Pipeline, API, Trainings- und Auswertungsmodule |
-| `daten/` | Rohdaten, verarbeitete Clips, Features, lokale Modelle und Metadaten |
-| `training/` | LoRA-Läufe, Ausgaben, Bewertungen, Reports und Checkpoints |
-| `dokumentation/` | Begleitdokumentation, Struktur- und Verlaufsnotizen |
-| `code/website/lo-fi-dreamer/` | Lokale Website zur Steuerung der Audio- und Video/GIF-Funktionen |
-
-Der zentrale Einstiegspunkt ist:
-
-```bash
-.venv/bin/python code/start.py
-```
-
-Die lokale API wird gestartet mit:
-
-```bash
-.venv/bin/python code/src/Pipeline/web_api.py
-```
-
-Die Website wird im Frontend-Ordner gestartet:
-
-```bash
-cd code/website/lo-fi-dreamer
-npm run dev
-```
-
-## 3. Genres und Zielprofile
-
-Die LoRA-Genres sind zentral in `code/configs/lora_genres.json` definiert.
-Derzeit werden folgende Zielklassen verwendet:
-
-| Genre | Funktion im Projekt |
-|---|---|
-| Jazz Lofi | harmonisch geprägte Lo-Fi-Musik mit Rhodes, Piano oder Jazz-Anmutung |
-| Chillhop Lofi | klassischer Lo-Fi-/Hip-Hop-Groove mit ruhigem Beat |
-| Dreamy Lofi | weiche, atmosphärische Lo-Fi-Klangflächen |
-| Study Lofi | stabile, unaufdringliche Musik für konzentriertes Arbeiten |
-| Guitar Lofi | Lo-Fi-Musik mit Gitarrenanteilen und warmem Klangbild |
-
-Diese Genreprofile werden für Quellensuche, Dataset-Aufbau, Prompt-Erzeugung,
-Referenzvergleich und Website-Auswahl verwendet.
-
-## 4. Datenerfassung
-
-Die Datenerfassung ist vom eigentlichen Trainings- und Generierungsablauf
-getrennt. Dadurch kann die Pipeline lokal mit bereits vorhandenen Daten
-arbeiten, ohne bei jedem Lauf neue Downloads auszulösen.
-
-Relevante Module:
-
-| Datei | Aufgabe |
-|---|---|
-| `code/src/Crawler/quellen_suche.py` | Suche, Import und MP3-Verarbeitung einzelner Quellen |
-| `code/src/Crawler/quellen_finden.py` | automatisierte Suche fehlender Quellen pro Genre |
-| `code/src/Pipeline/clips_vorbereiten.py` | Nutzung von Top-Quellen zur Clip- und Dataset-Vorbereitung |
-
-Die Quellensuche dokumentiert Suchbegriffe, gefundene Kandidaten, Top-Auswahl
-und Ausschlussgründe. Manuell importierte Quellen werden separat markiert, damit
-sie nicht unbeabsichtigt gelöscht oder mit automatischen Suchläufen verwechselt
-werden.
-
-## 5. Datenaufbereitung
-
-Die Datenaufbereitung standardisiert Roh-Audiodateien in für MusicGen geeignete
-Trainingsclips. Ziel sind kurze, vergleichbare Abschnitte mit stabiler Dauer,
-einheitlicher Samplerate und verwertbarer Qualität.
-
-Wichtige Schritte:
-
-1. Importierte MP3/WAV/M4A-Dateien werden lokal erfasst.
-2. Audios werden in Clips zerlegt.
-3. Clips werden nach Genre sortiert.
-4. Duplikate und problematische Quellen werden ausgeschlossen.
-5. Das LoRA-Zieldataset wird genrebalanciert aufgebaut.
-6. Split-Informationen werden in `train`, `valid` und `test` abgelegt.
-
-Relevante Module:
-
-| Datei | Aufgabe |
-|---|---|
-| `code/src/Dataset/zieldatensatz.py` | Aufbau des genrebalancierten Ziel-Datasets |
-| `code/src/Dataset/trainingsdaten_pruefen.py` | Qualitätsfilterung und Ausschluss schlechter Clips |
-| `code/src/Dataset/datensatz.py` | Validierung und Audit vorhandener Dataset-Strukturen |
-| `code/src/Dataset/genre_regeln.py` | Regeln für Genre-Zuordnung und Quellenqualität |
-
-Das aktive LoRA-Dataset liegt typischerweise unter:
-
-```text
-daten/processed/lora_training/
-```
-
-## 6. Feature Extraction und Qualitätsprüfung
-
-Die Feature Extraction erzeugt technische Audio-Merkmale, die für Bewertung,
-Filterung und wissenschaftliche Auswertung genutzt werden.
-
-Geprüft werden unter anderem:
-
-- Dauer und Samplerate
-- Lautheit und RMS-Werte
-- stille oder leise Sekunden
-- Clipping-Risiko
-- Bassanteil
-- Höhen-/Shaker-Anteil
-- Snare-/Präsenzbereich
-- Tonalitäts- und Signaltonrisiko
-- BPM-Schätzung
-- Energieverteilung
-
-Relevante Module:
-
-| Datei | Aufgabe |
-|---|---|
-| `code/src/Merkmale/audio_merkmale.py` | Extraktion technischer Merkmale |
-| `code/src/Training/audio_bewertung.py` | automatische Bewertung erzeugter Audios |
-| `code/src/Training/referenz_vergleich.py` | Vergleich generierter Audios mit Genre-Referenzen |
-
-Diese Werte dienen nicht als vollständiger Ersatz für menschliche Bewertung,
-sondern als reproduzierbarer technischer Prüfrahmen.
-
-## 7. LoRA-Modellanpassung
-
-LoRA ist der zentrale Mechanismus zur Anpassung von MusicGen. Das Projekt nutzt
-kein vollständiges Neutraining des Basismodells, sondern trainiert adapterartige
-Gewichte, die später in die MusicGen-Generierung geladen werden.
-
-Relevante Module:
-
-| Datei | Aufgabe |
-|---|---|
-| `code/src/Training/lora.py` | aktives LoRA-Training und Fortsetzen von Läufen |
-| `code/src/Training/musicgen_steuerung.py` | MusicGen-nahe Trainings- und Review-Steuerung |
-| `code/start.py` | sichere CLI-Abstraktion für Training, Fortsetzen und Freigabe |
-
-Wissenschaftlich wichtig ist die Trennung zwischen Kandidaten-Checkpoint und
-freigegebenem Checkpoint:
-
-- Zwischencheckpoints werden nicht automatisch für die finale Audioerzeugung
-  verwendet.
-- Ein Checkpoint muss bewertet und bewusst freigegeben werden.
-- Trainingsabbrüche sollen vorhandene Checkpoints nicht zerstören.
-- GPU-Nutzung wird standardmäßig auf maximal 80 Prozent begrenzt.
-
-Typische Befehle:
-
-```bash
-.venv/bin/python code/start.py --lora-training
-.venv/bin/python code/start.py --lora-fortsetzen
-.venv/bin/python code/start.py --lora-freigeben --checkpoint PFAD
-```
-
-## 8. Testaudios
-
-Nach LoRA-Trainingsläufen können Testaudios pro Genre erzeugt werden. Diese
-dienen als kontrollierte Vergleichsbasis für die menschliche und automatische
-Bewertung.
-
-Zielgenres:
+Aktuelle Zielgenres stehen in `code/configs/lora_genres.json`:
 
 - Jazz Lofi
 - Chillhop Lofi
@@ -196,248 +83,137 @@ Zielgenres:
 - Study Lofi
 - Guitar Lofi
 
-Relevante Module:
+Das Basismodell ist `facebook/musicgen-melody-large`. Lokale Modellpfade und
+Standardwerte sind in `code/configs/konfiguration.yaml` dokumentiert. Der
+aktive Adapterpfad ist `training/musicgen/lora_training/adapter.pt`.
 
-| Datei | Aufgabe |
-|---|---|
-| `code/src/Training/bewertung_audios_erstellen.py` | Testaudio-Generierung und Review-Struktur |
-| `code/src/Training/testaudios_sammeln.py` | Zusammenführen von Testaudios |
-| `code/src/Training/trainingsclips_bewertung.py` | Bewertung echter Trainingsclips |
+## Aktueller MusicGen-Stand
 
-Ausgaben werden unter `training/bewertungen/musicgen/` abgelegt.
+Die Versuchsdokumentation bis 2026-08-19 zeigt: Mehr Training oder aggressivere
+Hyperparameter haben nicht automatisch bessere Musik ergeben. Mehrere Versuche
+wurden als Regression archiviert.
 
-## 9. Longform-Audioerzeugung
+Statuscheck am 2026-08-22:
 
-MusicGen erzeugt im Projekt kurze Kandidatenclips. Die Longform-Audio entsteht
-nicht durch einfaches Aneinanderhängen dieser Clips, sondern durch einen
-mehrstufigen Auswahl- und Loopingprozess.
+- LoRA-Dataset: 5000/5000 Clips, keine fehlenden Clips.
+- LoRA-Adapter: bereit, `step_000625`, Typ `lora`.
 
-Aktueller Ablauf:
+Wichtige Erkenntnisse:
 
-1. Für einen geplanten Rhythmusblock wird ein 30-Sekunden-Kandidat erzeugt.
-2. Pro Block werden mehrere Kandidaten erzeugt.
-3. Jeder Kandidat wird technisch geprüft.
-4. Der Übergang zum vorherigen Block wird bewertet.
-5. Nur Kandidaten mit akzeptabler Technik und akzeptablem Übergang werden
-   zugelassen.
-6. Der beste Kandidat wird auf die Blocklänge geloopt.
-7. Zwischen Blöcken wird ein kurzer Crossfade gesetzt.
-8. Am Anfang der finalen Audio wird ein Fade-in gesetzt.
-9. Am Ende der finalen Audio wird ein Fade-out gesetzt.
-10. Die finale Audio wird automatisch bewertet und dokumentiert.
+- Der fruehe Checkpoint `step_000625` war lange der stabilste dokumentierte
+  Adapterstand.
+- Ein 3000-Schritte-Lauf verschlechterte mehrere Genres deutlich und wurde
+  archiviert.
+- Genre-Melody-Conditioning mit echten Referenzclips ist im Code als Option
+  vorhanden, aber produktiv deaktiviert.
+- Eine FMA-Datensatzerweiterung brachte mehr Quellenvielfalt, verschlechterte
+  aber die Bewertung und wurde zurueckgesetzt bzw. archiviert.
+- Die Bewertungsmethode hat Eigenrauschen. Einzelmessungen reichen nicht fuer
+  belastbare Modellvergleiche; spaetere Vergleiche nutzen Wiederholungen.
+- Die technische Audioqualitaet kann einen Deckeneffekt haben, weil grobe
+  Defekte bereits waehrend der Generierung herausgefiltert werden.
+- Neuere Experimente liegen unter anderem in
+  `training/musicgen/lora_training_rank16_test/` und archivierten
+  `training/musicgen/lora_training_archiv_*`-Ordnern.
 
-Relevante Module:
+Details: `MUSIKMODELL_VERSUCHSDOKUMENTATION.md`.
 
-| Datei | Aufgabe |
-|---|---|
-| `code/src/Training/audio_erstellen.py` | aktive MusicGen-Longform-Generierung |
-| `code/src/Training/audio_loopen.py` | robuste Loop-Analyse und Loop-Block-Erzeugung |
-| `code/src/Training/clips_loopen.py` | Fallback aus vorhandenen bewerteten Clips |
+## Bewertungssystem
 
-Die Website unterstützt feste und freie Längen:
+Der aktuelle Code in `code/src/Training/audio_bewertung.py` berechnet acht
+Score-Kategorien:
 
-- 5 min
-- 15 min
-- 20 min
-- 30 min
-- 1 h
-- 3 h
-- freie Eingabe
-
-Die Rhythmusblocklänge wird prozentual und über eine Mindestlänge bestimmt. Für
-eine Stunde entspricht ein Wechsel etwa alle drei Minuten, sofern keine manuelle
-Blockdauer gesetzt wird.
-
-## 10. Übergangslogik
-
-Die Übergangslogik ist entscheidend, weil ein technisch guter Clip musikalisch
-ungeeignet sein kann, wenn er schlecht an den vorherigen Block anschließt.
-
-Für jeden Kandidaten werden unter anderem geprüft:
-
-- BPM-Ähnlichkeit
-- Lautheit am Ende von Block A und Anfang von Block B
-- Bass-Ähnlichkeit
-- Snare-/Präsenz-Ähnlichkeit
-- Höhen-/Shaker-Ähnlichkeit
-- Energie-Sprung
-- harmonische bzw. timbrale Nähe
-- Rhythmus- und Energieverlauf
-- abrupter Drop
-- Stille am Anfang oder Ende
-- abgeschnittener Ton
-- Klickrisiko an der Clipkante
-
-Ein harter Übergangsfehler führt dazu, dass der Kandidat nicht akzeptiert wird.
-Damit gewinnt nicht automatisch der isoliert beste Clip, sondern der Clip mit
-dem besten musikalischen Anschluss im Kontext der Longform-Audio.
-
-## 11. Automatische Bewertung
-
-Nach der Erzeugung wird die finale Audio automatisch bewertet. Die Bewertung
-liefert fünf Hauptscores:
-
-1. Technische Audioqualität
-2. Musikalische Kohärenz
+1. Technische Audioqualitaet
+2. Musikalische Kohaerenz
 3. Genre-Treue
-4. Übergangsqualität
-5. Referenzähnlichkeit
+4. Uebergangsqualitaet
+5. Referenzaehnlichkeit
+6. Stille-/Aktivitaetsanteil
+7. Rhythmische Stabilitaet
+8. Klangfarbenbalance
 
-Die generierte Audio wird gegen einen gespeicherten Genrestandard verglichen.
-Dabei werden zwei getrennte Score-Darstellungen erzeugt:
+Aeltere Notizen sprechen teilweise noch von fuenf Kategorien. Das ist fuer den
+aktuellen Code veraltet. Falls Frontend oder Berichte noch fuenf Kategorien
+erwarten, muss diese Schnittstelle vor Aenderungen geprueft werden.
 
-- Genrestandard
-- Generierte Audio
-
-Beide Darstellungen verwenden dieselben Kategorien, dieselbe Reihenfolge und
-eine Skala von 0 bis 100. Im Hauptbereich werden keine Rohkurven wie
-Spektrogramme, RMS-Kurven oder BPM-Verläufe angezeigt.
-
-Relevante Dateien pro Longform-Lauf:
+Wichtige Bewertungsdateien pro Longform-Lauf:
 
 | Datei | Inhalt |
 |---|---|
-| `finale_audio_info.json` | vollständiger technischer Abschlussreport |
+| `score_bewertung.json` | Score-Daten fuer die generierte Audio |
+| `score_bewertung.html` | visuelle Auswertung |
 | `generation_report.json` | reproduzierbarer Generierungsreport |
-| `score_bewertung.json` | Fünf-Score-Bewertung |
-| `score_bewertung.html` | visuelle Score-Auswertung |
-| `kandidaten_score.csv` | Bewertung aller Kandidaten |
-| `uebergangs_pruefung.csv` | finale Übergangsprüfung |
-| `ablauf.csv` | zeitlicher Aufbau der Longform-Audio |
-| `bericht.md` | wissenschaftlicher Kurzbericht des Laufs |
+| `finale_audio_info.json` | technischer Abschlussreport |
+| `kandidaten_score.csv` | Bewertung einzelner Kandidaten |
+| `uebergangs_pruefung.csv` | Uebergangsdiagnose |
+| `bericht.md` | lauffaehiger Kurzbericht |
 
-## 12. Website und lokale API
+## Longform-Generierung
 
-Die Website dient als lokale Bedienoberfläche für zentrale Pipelinefunktionen.
-Sie ist kein extern gehosteter Dienst, sondern verbindet sich mit der lokalen
-API.
+Longform-Audios entstehen nicht durch blindes Aneinanderhaengen. Pro Abschnitt
+werden mehrere Kandidaten generiert, technisch bewertet, gegen den vorherigen
+Block geprueft und erst danach geloopt bzw. per Crossfade verbunden.
 
-API:
+Typische aktive Parameter aus `code/start.py`:
 
-```bash
-.venv/bin/python code/src/Pipeline/web_api.py
-```
+- Ziel-BPM: 78
+- BPM-Toleranz: 4
+- Kandidaten pro Abschnitt: 3
+- MusicGen-Temperatur: 0.72
+- Top-k: 80
+- CFG: 4.0
+- VRAM-Limit: 80 Prozent
+- Live-Status: 1 Sekunde
+- Genre- und MP3-Referenzpruefung aktiv
 
-Standard-Adresse:
+Die wichtigsten Skripte sind:
 
-```text
-http://127.0.0.1:8000
-```
+- `code/src/Training/audio_erstellen.py`
+- `code/src/Training/audio_loopen.py`
+- `code/src/Training/clips_loopen.py`
+- `code/src/Training/referenz_vergleich.py`
 
-Wichtige API-Funktionsbereiche:
+## Lokale Befehle
 
-- Status
-- Quellen
-- Top-Quellen
-- Clips
-- LoRA-Status
-- LoRA-Training und Fortsetzen
-- Testaudios
-- Longform-Generierung
-- Audio-Bewertung
-- Reports
-- Audio-Download
-- Video/GIF-Galerie
-
-Die Website zeigt und startet lokale Jobs, ohne automatisch lange Trainings oder
-Downloads auszulösen.
-
-## 13. Video- und GIF-Integration
-
-Die Video/GIF-Funktionen sind als separater Projektbereich eingebunden. Sie
-werden über die Website angezeigt, aber die Audio-Pipeline ist davon fachlich
-getrennt.
-
-Relevante Bereiche:
-
-| Ordner/Datei | Aufgabe |
-|---|---|
-| `Bachelorarbeit/lofi_pipeline/` | bestehende Video-/GIF-Pipeline |
-| `dokumentation/video_gif/` | Dokumentation des Video-/GIF-Teils |
-| `code/website/lo-fi-dreamer/src/routes/studio.video.tsx` | Website-Integration für Video/GIF |
-
-Die Audio-Dokumentation verändert diesen Bereich nicht. Ziel ist die
-Integration in der Oberfläche, nicht die Vermischung der Trainingspipelines.
-
-## 14. Prozessdokumentation
-
-Jeder wichtige Schritt erzeugt oder aktualisiert Reports. Diese Reports sind für
-die Bachelorarbeit nutzbar, weil sie Eingaben, Entscheidungen und Ergebnisse
-nachvollziehbar machen.
-
-Dokumentiert werden unter anderem:
-
-- verwendete Genres
-- Suchbegriffe
-- Quellen und Top-Auswahl
-- ausgeschlossene Quellen und Clips
-- Dataset-Zusammensetzung
-- Trainingsstand und Checkpoints
-- GPU-Limit
-- erzeugte Testaudios
-- verwendeter LoRA-Adapter
-- Rhythmusblöcke
-- Loop-Längen
-- Übergänge und verworfene Übergänge
-- finale Audio
-- automatische Bewertung
-- Empfehlung für den nächsten Schritt
-
-Die Texte und Reports sind sachlich formuliert und dienen als Grundlage für die
-wissenschaftliche Auswertung.
-
-## 15. Typische Arbeitsabläufe
-
-### 15.1 Status prüfen
+Status pruefen:
 
 ```bash
 .venv/bin/python code/start.py --status
 ```
 
-### 15.2 Quellen suchen
+Genres anzeigen:
+
+```bash
+.venv/bin/python code/start.py --genres-anzeigen
+```
+
+Top-10-Quellen fuer ein Genre suchen:
 
 ```bash
 .venv/bin/python code/start.py --top10 --genre "Jazz Lofi"
 ```
 
-### 15.3 Clips vorbereiten
+Dataset vorbereiten:
 
 ```bash
 .venv/bin/python code/start.py --clips-5000
 ```
 
-Mit Downloads:
-
-```bash
-.venv/bin/python code/start.py --clips-5000 --mit-downloads
-```
-
-### 15.4 LoRA trainieren oder fortsetzen
+LoRA trainieren oder fortsetzen:
 
 ```bash
 .venv/bin/python code/start.py --lora-training
 .venv/bin/python code/start.py --lora-fortsetzen
+.venv/bin/python code/start.py --lora-weitere-500
 ```
 
-### 15.5 Testaudios erzeugen
+Testaudios erzeugen:
 
 ```bash
 .venv/bin/python code/start.py --testaudios
 ```
 
-### 15.6 Longform-Audio erzeugen
-
-Kurzer lokaler Test ohne GitHub-Push:
-
-```bash
-.venv/bin/python code/src/Pipeline/projekt_ablauf.py \
-  --stufen audio_generieren \
-  --dauer 5m \
-  --genre "Chillhop Lofi" \
-  --kein-github-push
-```
-
-Nur planen, ohne Modellstart:
+Kurzen Planlauf ohne Modellstart schreiben:
 
 ```bash
 .venv/bin/python code/src/Pipeline/projekt_ablauf.py \
@@ -447,53 +223,7 @@ Nur planen, ohne Modellstart:
   --nur-plan
 ```
 
-### 15.7 Referenzvergleich ausführen
-
-```bash
-.venv/bin/python code/start.py --referenzvergleich
-```
-
-## 16. Wissenschaftliche Einordnung
-
-Das Projekt kombiniert generative Modellierung mit einem kontrollierten
-technischen Bewertungssystem. Methodisch besteht die Arbeit aus vier Ebenen:
-
-1. Datenebene: Erfassung, Filterung und genrebalancierte Strukturierung von
-   Lo-Fi-Audiodaten.
-2. Modellebene: Anpassung eines vortrainierten MusicGen-Modells über LoRA.
-3. Generierungsebene: Erzeugung kurzer Kandidaten und Konstruktion langer
-   Audios über Looping, Crossfades und Übergangsprüfung.
-4. Evaluationsebene: automatische Score-Bewertung, Referenzvergleich und
-   menschliche Bewertungsunterstützung.
-
-Diese Trennung ist wichtig, weil sie die Ergebnisse interpretierbar macht. Ein
-schlechtes Ergebnis kann dadurch einer konkreten Ebene zugeordnet werden:
-
-- Datenproblem
-- Genreproblem
-- Trainingsproblem
-- Generierungsproblem
-- Übergangsproblem
-- Bewertungs- oder Referenzproblem
-
-## 17. Grenzen des Systems
-
-Die automatische Bewertung ist ein technischer Näherungsansatz. Sie kann
-auffällige Fehler erkennen, ersetzt aber keine vollständige musikalische
-Beurteilung.
-
-Bekannte Grenzen:
-
-- BPM-Schätzung kann bei Lo-Fi-Material unsicher sein.
-- Harmonische Nähe wird lokal über spektrale/timbrale Fingerprints angenähert.
-- Genre-Treue hängt von Qualität und Umfang der Referenzen ab.
-- Lange Audios müssen weiterhin stichprobenartig menschlich nachgehört werden.
-- LoRA-Qualität hängt stark von Dataset-Balance und Clipqualität ab.
-
-## 18. Aktueller nächster sinnvoller Schritt
-
-Der nächste sinnvolle Schritt ist ein kurzer echter 5-Minuten-Testlauf mit einem
-freigegebenen LoRA-Adapter:
+Echte kurze Longform-Generierung:
 
 ```bash
 .venv/bin/python code/src/Pipeline/projekt_ablauf.py \
@@ -503,14 +233,110 @@ freigegebenen LoRA-Adapter:
   --kein-github-push
 ```
 
-Danach sollten folgende Dateien geprüft werden:
+Lokale API starten:
 
-- `lange_audio.mp3` oder `lange_audio.wav`
-- `bericht.md`
-- `score_bewertung.html`
-- `uebergangs_pruefung.csv`
-- `kandidaten_score.csv`
+```bash
+.venv/bin/python code/src/Pipeline/web_api.py
+```
 
-Diese Prüfung zeigt, ob die erzeugte Audio technisch stabil ist, ob die
-Übergänge plausibel bewertet wurden und ob der Lauf als Grundlage für die
-Bachelorarbeit verwendet werden kann.
+Standard-API-Adresse:
+
+```text
+http://127.0.0.1:8000
+```
+
+## Website / Studio
+
+Die Studio-Website wurde in frueheren Sitzungen als getrenntes Frontend
+beschrieben. In den aktuellen Root-Dateien liegt kein `code/website/`-Ordner
+mehr. Die letzten Sitzungsnotizen nennen als Frontend-Ort:
+
+```text
+/tmp/lo-fi-harmony-forge-newweb
+```
+
+Das ist ein separates Git-Repo auf Branch `NewWeb` und kann nach einem Neustart
+fehlen, weil es unter `/tmp` liegt. Vor Arbeiten an der Website muss deshalb
+zuerst geprueft werden, ob dieses Repo noch existiert oder neu geklont werden
+muss.
+
+Node ist in frischen Shells nicht sicher im `PATH`. Der zuletzt bekannte
+Node-Pfad war:
+
+```text
+/home/BA_Musikproduktion/.cache/lo-fi-dreamer-node/node-v22.22.3-linux-x64/bin
+```
+
+Die Website sollte nur echte lokale Daten anzeigen. Fruehere Mock-/Landingpage-
+Sektionen mit erfundenen Werten wurden entfernt oder sollten entfernt bleiben.
+
+## Video/GIF-Pipeline
+
+Die echte Video/GIF-Pipeline liegt unter:
+
+```text
+Bachelorarbeit/lofi_pipeline/
+```
+
+Aktueller Stand aus `VIDEO_PIPELINE_KONTEXT.md`:
+
+- Modell: `LTXV_13B_097_DEV`, nicht mehr 2B.
+- Training: `Bachelorarbeit/lofi_pipeline/scripts/train_lora.py`.
+- Generierung: `Bachelorarbeit/lofi_pipeline/scripts/generate_samples.py`.
+- Feedback-UI: `Bachelorarbeit/lofi_pipeline/scripts/feedback_ui.py`, Port 7860.
+- Postprocessing: `make_gif.py`, RIFE/minterpolate, ESRGAN, GIF und MP4.
+- Bewertung: `evaluate_video.py` unter `Bachelorarbeit/pipeline/realistic_rabbit/`.
+- Szenarien liegen unter `Bachelorarbeit/lofi_pipeline/scenarios/`.
+- Kein Szenario gilt sicher als final fertig trainiert.
+- `rabbit_lake` ist weit fortgeschritten, hatte aber CUDA-OOM und bekannte
+  Prompt-/Objektprobleme.
+
+Die Video-Seite im Studio war zuletzt eher Design/Mockup und nicht sauber an
+diese echte Pipeline angebunden.
+
+## Dokumentationslandkarte
+
+| Dokument | Wofuer lesen? |
+|---|---|
+| `README.md` | aktueller Einstieg und Arbeitsgedaechtnis |
+| `CLAUDE.md` | alte Sitzungsnotizen zur Studio-Website und API, nuetzlich aber teils veraltet |
+| `MUSIKMODELL_VERSUCHSDOKUMENTATION.md` | chronologische MusicGen-LoRA-Versuche und Messmethodik |
+| `VIDEO_PIPELINE_KONTEXT.md` | technische Referenz der LTX-Video-Pipeline |
+| `dokumentation/aktuell/01_struktur.md` | Audio-Projektstruktur |
+| `dokumentation/aktuell/02_ablauf.md` | Audio-Ablauf |
+| `dokumentation/aktuell/03_code_erklaerung.md` | Code-Erklaerung |
+| `dokumentation/aktuell/04_einrichtung.md` | lokales Setup |
+| `dokumentation/aktuell/05_prozessdokumentation_musicgen.md` | wissenschaftliche Prozessbeschreibung |
+| `dokumentation/video_gif/` | Video/GIF-Dokumentation |
+
+## Offene Punkte
+
+- Bewertungsdokumentation und Frontend ggf. von fuenf auf acht Score-Kategorien
+  nachziehen.
+- Bei neuen Experimenten erneut pruefen, ob `adapter.pt` weiterhin auf den
+  bewusst freigegebenen Stand zeigt.
+- Website-Repo unter `/tmp/lo-fi-harmony-forge-newweb` verifizieren oder neu
+  herstellen.
+- Cookie-basierte YouTube-Importe (`cookies-from-browser`) nur nach bewusster
+  Entscheidung einbauen.
+- Video/GIF-Studio-Anbindung erst nach genauer Pruefung der echten
+  `Bachelorarbeit/lofi_pipeline/`-Schnittstellen bauen.
+- Fuer Modellvergleiche keine Einzelmessungen mehr als harte Entscheidung
+  verwenden; Wiederholungen und Standardabweichung dokumentieren.
+
+## Naechster sinnvoller Arbeitsstart
+
+Vor jeder neuen Arbeit:
+
+1. `git status --short` ansehen.
+2. Diese README lesen.
+3. Bei Audioarbeit `MUSIKMODELL_VERSUCHSDOKUMENTATION.md` und
+   `dokumentation/aktuell/05_prozessdokumentation_musicgen.md` querpruefen.
+4. Bei Videoarbeit `VIDEO_PIPELINE_KONTEXT.md` lesen.
+5. Danach erst Code oder lange Jobs anfassen.
+
+Schneller technischer Check:
+
+```bash
+.venv/bin/python code/start.py --status
+```

@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""Lokale semantische Genre-Pruefung fuer generierte MusicGen-Audios.
-
-Technische Kennzahlen erkennen Stille, Clipping oder Bass-Dominanz, aber nicht,
-ob ein als Jazz Lofi angeforderter Clip tatsaechlich nach Jazz Lofi klingt.
-Diese Datei nutzt das bereits lokal gespeicherte CLAP-Modell und bildet aus den
-menschlich bewerteten Referenzaudios Genre-Zentren. Neue Kandidaten werden
-fensterweise mit diesen Referenzen verglichen. CLAP ist dabei ein Vorfilter und
-Ranking-Signal; die menschliche Bewertung bleibt die abschliessende Instanz.
-"""
 
 from __future__ import annotations
 
@@ -35,7 +26,6 @@ GENRE_NAMEN = {
 
 
 def genre_schluessel(value: str) -> str:
-    """Vereinheitlicht UI-, CSV- und Manifest-Genrebezeichnungen."""
 
     text = str(value or "").strip().lower().replace("-", " ")
     text = " ".join(text.split())
@@ -71,7 +61,6 @@ def _normalisiere(embedding: np.ndarray) -> np.ndarray:
 
 
 class GenrePruefer:
-    """Vergleicht Audios lokal mit menschlich bewerteten Referenzclips."""
 
     def __init__(
         self,
@@ -105,7 +94,6 @@ class GenrePruefer:
         self._lade()
 
     def _lade(self) -> None:
-        """Laedt ausschliesslich lokale Gewichte und baut Referenzzentren."""
 
         try:
             import torch
@@ -176,7 +164,6 @@ class GenrePruefer:
             self.negatives_zentrum = _normalisiere(np.mean(alle_schlechten, axis=0))
 
     def _fenster(self, path: Path, max_fenster: int | None = None) -> list[np.ndarray]:
-        """Liest gleichmaessig verteilte, exakt 10s lange Analysefenster."""
 
         import librosa
 
@@ -224,7 +211,6 @@ class GenrePruefer:
         )
 
     def pruefe(self, path: Path, ziel_genre: str) -> dict[str, Any]:
-        """Bewertet Genre- und Qualitaetsnaehe eines neuen Kandidaten."""
 
         if not self.verfuegbar:
             return {
@@ -303,7 +289,6 @@ class GenrePruefer:
         }
 
     def bericht(self) -> dict[str, Any]:
-        """Dokumentiert Modell, Referenzen und Schwellenwerte."""
 
         return {
             "enabled": True,
@@ -322,7 +307,6 @@ class GenrePruefer:
         }
 
     def schliessen(self) -> None:
-        """Gibt CPU/GPU-Speicher nach der Kandidatenpruefung frei."""
 
         self._model = None
         self._processor = None
@@ -335,7 +319,6 @@ class GenrePruefer:
 
 
 def main() -> int:
-    """Kleine lokale Einzeldatei-Pruefung fuer Diagnosezwecke."""
 
     import argparse
 

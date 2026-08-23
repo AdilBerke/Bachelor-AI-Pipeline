@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""Zentraler Starter fuer MusicGen-LoRA-Training.
-
-Diese Datei startet nicht eine neue Trainingslogik, sondern prueft zuerst die
-Trainingsdaten und ruft danach den vorhandenen Trainer in `musicgen_steuerung.py`
-auf. Dadurch bleiben Checkpoint-Format, VRAM-Schutz und LoRA-Parameter an einer
-zentralen Stelle.
-
-Wichtig fuer die Bachelorarbeit:
-- MP3-Rohdaten werden vor dem Training auf Duplikate geprueft.
-- Manifest-Clips werden vor dem Training auf doppelte Pfade und doppelte
-  Quell-Zeitfenster geprueft.
-- Bei zusaetzlichen Dataset-Wurzeln wird ein dedupliziertes Manifest-Dataset
-  erstellt, ohne WAV-Dateien zu kopieren.
-- Wenn kritische Duplikate gefunden werden, startet das Training nicht.
-"""
 
 from __future__ import annotations
 
@@ -53,12 +38,10 @@ YOUTUBE_ID_RE = re.compile(r"\[([A-Za-z0-9_-]{11})\]")
 
 
 def jetzt_utc() -> str:
-    """UTC-Zeitstempel fuer reproduzierbare Reports."""
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def rel(path: Path) -> str:
-    """Gibt Projektpfade kurz aus, damit Reports lesbar bleiben."""
     try:
         return str(path.resolve().relative_to(PROJEKTWURZEL))
     except Exception:
@@ -66,7 +49,6 @@ def rel(path: Path) -> str:
 
 
 def _policy_pfad(value: Any) -> Path:
-    """Loest relative Pfade aus der Checkpoint-Policy gegen die Projektwurzel auf."""
     path = Path(str(value)).expanduser()
     if not path.is_absolute():
         path = PROJEKTWURZEL / path
@@ -74,7 +56,6 @@ def _policy_pfad(value: Any) -> Path:
 
 
 def lade_lora_stand(run_dir: Path | None = None) -> dict[str, Any]:
-    """Liest den lokalen LoRA-Stand eines Trainingslaufs (Standard: der geteilte)."""
     stand_path = (run_dir / "stand.json") if run_dir is not None else LORA_STAND
     if not stand_path.exists():
         return {}
@@ -86,7 +67,6 @@ def lade_lora_stand(run_dir: Path | None = None) -> dict[str, Any]:
 
 
 def policy_bester_adapter() -> Path:
-    """Gibt den freigegebenen besten Adapter zurueck; Fallback ist LoRA."""
     payload = lade_lora_stand()
     best = payload.get("best_adapter") if payload.get("status") != "freigegeben" else payload.get("best_adapter") or payload.get("adapter")
     if best:
@@ -97,14 +77,12 @@ def policy_bester_adapter() -> Path:
 
 
 def policy_verworfene_runs() -> set[str]:
-    """Run-Namen, die nicht automatisch als Resume-Basis genutzt werden sollen."""
     payload = lade_lora_stand()
     runs = payload.get("rejected_runs", [])
     return {str(item).strip().lower() for item in runs if str(item).strip()}
 
 
 def policy_verworfene_adapter() -> set[Path]:
-    """Einzelne Adapter, die nicht automatisch genutzt werden duerfen."""
     payload = lade_lora_stand()
     adapters = payload.get("rejected_adapters", [])
     result: set[Path] = set()
@@ -117,7 +95,6 @@ def policy_verworfene_adapter() -> set[Path]:
 
 
 def slug(text: str) -> str:
-    """Erzeugt kurze deutsche Dateinamen ohne Sonderzeichenprobleme."""
     value = str(text or "").strip().lower()
     value = value.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
     value = re.sub(r"[^a-z0-9_.-]+", "_", value).strip("._-")
@@ -125,7 +102,6 @@ def slug(text: str) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    """Definiert die sichere Bedienung des LoRA-Starters."""
     parser = argparse.ArgumentParser(description="Prueft Daten und startet danach MusicGen-LoRA-Training.")
     parser.add_argument("--dataset-root", default=str(STANDARD_DATASET))
     parser.add_argument(
@@ -215,7 +191,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def datei_hash(path: Path, chunk_size: int = 1024 * 1024) -> str:
-    """Berechnet SHA256, um echte Datei-Duplikate zu erkennen."""
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         while True:
@@ -227,13 +202,11 @@ def datei_hash(path: Path, chunk_size: int = 1024 * 1024) -> str:
 
 
 def youtube_id(path: Path) -> str:
-    """Liest eine YouTube-ID aus Dateinamen wie `Titel [VIDEO_ID].mp3`."""
     match = YOUTUBE_ID_RE.search(path.name)
     return match.group(1) if match else ""
 
 
 def gruppen_mit_duplikaten(items: Iterable[tuple[str, Any]]) -> dict[str, list[Any]]:
-    """Sammelt nur Schluessel, die mehrfach vorkommen."""
     gruppen: dict[str, list[Any]] = defaultdict(list)
     for key, item in items:
         if key:
@@ -242,7 +215,6 @@ def gruppen_mit_duplikaten(items: Iterable[tuple[str, Any]]) -> dict[str, list[A
 
 
 def training_laeuft_bereits() -> bool:
-    """Verhindert doppelte LoRA-Starts aus VS Code oder einem zweiten Terminal."""
 
     try:
         output = subprocess.check_output(["ps", "-eo", "pid=,args="], text=True)
@@ -269,7 +241,6 @@ def training_laeuft_bereits() -> bool:
 
 
 def pruefe_mp3_duplikate(audio_roots: list[Path]) -> dict[str, Any]:
-    """Prueft MP3-Rohdaten auf doppelte Inhalte und doppelte YouTube-IDs."""
     mp3s: list[Path] = []
     for root in audio_roots:
         if root.exists():
@@ -291,11 +262,6 @@ def pruefe_mp3_duplikate(audio_roots: list[Path]) -> dict[str, Any]:
 
 
 def manifest_roots(root: Path) -> list[Path]:
-    """Findet Dataset-Wurzeln mit train/valid/test-Manifests.
-
-    Wenn `root` selbst ein Dataset ist, wird nur dieses genutzt. Wenn `root`
-    ein Sammelordner ist, werden darunter alle Dataset-Unterordner gefunden.
-    """
     root = root.expanduser().resolve()
     if all((root / split / "data.jsonl").exists() for split in SPLITS):
         return [root]
@@ -304,7 +270,6 @@ def manifest_roots(root: Path) -> list[Path]:
 
 
 def dataset_training_ready(root: Path) -> tuple[bool, str]:
-    """Blockiert Trainingsstarts auf bewusst unvollstaendigen Ziel-Datasets."""
     summary_path = root / "dataset_summary.json"
     if not summary_path.exists():
         return True, ""
@@ -335,7 +300,6 @@ def dataset_training_ready(root: Path) -> tuple[bool, str]:
 
 
 def lese_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Liest eine JSONL-Manifestdatei."""
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as handle:
         for line_number, raw_line in enumerate(handle, start=1):
@@ -352,7 +316,6 @@ def lese_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def lade_manifest_rows(roots: list[Path]) -> list[dict[str, Any]]:
-    """Laedt alle Manifest-Zeilen aus einer oder mehreren Dataset-Wurzeln."""
     rows: list[dict[str, Any]] = []
     for root in roots:
         for split in SPLITS:
@@ -364,7 +327,6 @@ def lade_manifest_rows(roots: list[Path]) -> list[dict[str, Any]]:
 
 
 def nummer(value: Any) -> str:
-    """Normalisiert Sekundenwerte fuer Duplikat-Schluessel."""
     if value is None or value == "":
         return ""
     try:
@@ -374,17 +336,15 @@ def nummer(value: Any) -> str:
 
 
 def clip_quellschluessel(row: dict[str, Any]) -> str:
-    """Erkennt doppelte Clips ueber Quelle und Zeitfenster.
 
-    Alte 60s-Splits und neue YouTube-MP3-Clips nutzen unterschiedliche
-    Feldnamen. Diese Funktion fuehrt sie in einen gemeinsamen Schluessel.
-    """
+
     source_60s_path = row.get("source_60s_path")
     if source_60s_path:
         teil = row.get("teil") or ""
         teil_start = row.get("teil_start_sec")
         teil_end = row.get("teil_end_sec")
         return f"60s|{source_60s_path}|{teil}|{nummer(teil_start)}|{nummer(teil_end)}"
+
 
     source_audio_path = row.get("source_audio_path")
     start_time = row.get("start_time_sec")
@@ -407,7 +367,6 @@ def clip_quellschluessel(row: dict[str, Any]) -> str:
 
 
 def wav_header(path: Path) -> dict[str, Any]:
-    """Prueft schnell, ob WAV-Header zum MusicGen-Standard passt."""
     with wave.open(str(path), "rb") as handle:
         sample_rate = int(handle.getframerate())
         channels = int(handle.getnchannels())
@@ -420,7 +379,6 @@ def wav_header(path: Path) -> dict[str, Any]:
 
 
 def pruefe_manifest_clips(rows: list[dict[str, Any]], *, volle_hash_pruefung: bool) -> dict[str, Any]:
-    """Prueft Clip-Manifeste auf Duplikate und offensichtliche Fehler."""
     path_items = []
     name_items = []
     source_items = []
@@ -479,7 +437,6 @@ def pruefe_manifest_clips(rows: list[dict[str, Any]], *, volle_hash_pruefung: bo
 
 
 def dedupliziere_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Entfernt doppelte Clip-Zeilen fuer ein neues Kombi-Manifest."""
     gesehen: set[str] = set()
     sauber: list[dict[str, Any]] = []
     uebersprungen: list[dict[str, Any]] = []
@@ -507,7 +464,6 @@ def dedupliziere_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]],
 
 
 def schreibe_kombi_dataset(rows: list[dict[str, Any]], name: str) -> Path:
-    """Schreibt ein dedupliziertes Manifest-Dataset ohne Audiodateien zu kopieren."""
     ziel = PROJEKTWURZEL / "daten" / "processed" / slug(name)
     split_rows: dict[str, list[dict[str, Any]]] = {split: [] for split in SPLITS}
     for row in rows:
@@ -540,7 +496,6 @@ def schreibe_kombi_dataset(rows: list[dict[str, Any]], name: str) -> Path:
 
 
 def checkpoint_step(path: Path) -> int:
-    """Liest die technische Step-Zahl aus dem Ordner oder Adapter-Payload."""
     for part in reversed(path.parts):
         if part.startswith("step_") and part.split("step_", 1)[1].isdigit():
             return int(part.split("step_", 1)[1])
@@ -548,12 +503,6 @@ def checkpoint_step(path: Path) -> int:
 
 
 def finde_neuesten_checkpoint(run_root: Path, *, max_step: int = 0) -> Path | None:
-    """Findet den hoechsten gespeicherten LoRA-Step im Trainingsordner.
-
-    Der Starter soll nicht jedes Mal manuell einen neuen Resume-Pfad brauchen.
-    Deshalb wird standardmaessig der Checkpoint mit der hoechsten Step-Zahl
-    genutzt. Bei gleicher Step-Zahl gewinnt die zuletzt geaenderte Datei.
-    """
 
     candidates = []
     rejected_runs = policy_verworfene_runs()
@@ -594,7 +543,6 @@ def finde_neuesten_checkpoint(run_root: Path, *, max_step: int = 0) -> Path | No
 
 
 def finde_checkpoint_mit_step(run_dir: Path, target_step: int) -> Path | None:
-    """Findet den Checkpoint des geplanten Zielstands im aktiven Run."""
 
     direct = run_dir / "checkpoints" / f"step_{target_step:06d}" / "lora_adapter.pt"
     if direct.is_file():
@@ -615,7 +563,6 @@ def finde_checkpoint_mit_step(run_dir: Path, target_step: int) -> Path | None:
 
 
 def finde_neuesten_checkpoint_im_run(run_root: Path, run_name: str) -> Path | None:
-    """Findet zuerst den letzten Checkpoint des gewuenschten Run-Ordners."""
 
     run_dir = run_root / slug(run_name)
     latest = finde_neuesten_checkpoint(run_dir, max_step=geplanter_ziel_step(run_dir))
@@ -625,7 +572,6 @@ def finde_neuesten_checkpoint_im_run(run_root: Path, run_name: str) -> Path | No
 
 
 def lese_run_plan(run_dir: Path) -> dict[str, Any]:
-    """Liest den gespeicherten Zielplan eines LoRA-Runs."""
 
     plan_path = run_dir / "training_plan.json"
     if not plan_path.exists():
@@ -638,7 +584,6 @@ def lese_run_plan(run_dir: Path) -> dict[str, Any]:
 
 
 def geplanter_ziel_step(run_dir: Path) -> int:
-    """Gibt das bisher geplante Ziel zurueck, falls ein Run fortgesetzt wird."""
 
     plan = lese_run_plan(run_dir)
     try:
@@ -648,7 +593,6 @@ def geplanter_ziel_step(run_dir: Path) -> int:
 
 
 def loese_resume_checkpoint(args: argparse.Namespace) -> Path | None:
-    """Loest `--resume-from auto` in einen echten Checkpoint-Pfad auf."""
 
     if args.ohne_resume:
         return None
@@ -671,6 +615,8 @@ def loese_resume_checkpoint(args: argparse.Namespace) -> Path | None:
         if latest:
             args.resume_from = str(latest)
             return latest
+
+
         args.ohne_resume = True
         args.resume_from = ""
         return None
@@ -678,7 +624,6 @@ def loese_resume_checkpoint(args: argparse.Namespace) -> Path | None:
 
 
 def naechster_run_name(run_root: Path, start_step: int, max_steps: int) -> str:
-    """Erzeugt einen kurzen, verstaendlichen Run-Namen ohne manuelle Nummern."""
 
     base = f"training_{start_step}_bis_{max_steps}"
     candidate = base
@@ -690,12 +635,6 @@ def naechster_run_name(run_root: Path, start_step: int, max_steps: int) -> str:
 
 
 def run_ordner_hat_training(path: Path) -> bool:
-    """Prueft, ob ein Run-Ordner bereits echtes Training enthaelt.
-
-    Ein Ordner aus `--nur-pruefen` soll den naechsten echten Start nicht zu
-    `_02` verschieben. Erst Checkpoints, Metriken oder Trainingslogs zaehlen als
-    belegter Trainingslauf.
-    """
 
     if not path.exists():
         return False
@@ -711,12 +650,10 @@ def run_ordner_hat_training(path: Path) -> bool:
 
 
 def modell_vorhanden(model_dir: Path) -> bool:
-    """Prueft, ob das lokale MusicGen-Modell vollstaendig vorhanden ist."""
     return model_dir.is_dir() and all((model_dir / name).exists() for name in MODELL_DATEIEN)
 
 
 def flache_duplikate(groups: dict[str, list[Any]], typ: str) -> list[dict[str, Any]]:
-    """Macht Duplikatgruppen als CSV lesbar."""
     rows: list[dict[str, Any]] = []
     for key, items in groups.items():
         for item in items:
@@ -728,7 +665,6 @@ def flache_duplikate(groups: dict[str, list[Any]], typ: str) -> list[dict[str, A
 
 
 def baue_trainingsbefehl(args: argparse.Namespace, dataset_root: Path, run_name: str) -> list[str]:
-    """Erstellt den eigentlichen `musicgen_steuerung.py train`-Befehl."""
     resume = Path(args.resume_from).expanduser().resolve()
     start_step = 0 if args.ohne_resume else checkpoint_step(resume)
     max_steps = int(args.max_steps) if int(args.max_steps) > 0 else start_step + int(args.steps_weiter)
@@ -785,7 +721,6 @@ def baue_trainingsbefehl(args: argparse.Namespace, dataset_root: Path, run_name:
 
 
 def zaehle_manifest_rows(dataset_root: Path, split: str) -> int:
-    """Zaehlt Manifest-Zeilen, ohne die Audiodateien erneut zu lesen."""
 
     path = dataset_root / split / "data.jsonl"
     if not path.exists():
@@ -795,7 +730,6 @@ def zaehle_manifest_rows(dataset_root: Path, split: str) -> int:
 
 
 def trainings_start_und_ziel(args: argparse.Namespace, run_dir: Path) -> tuple[int, int]:
-    """Berechnet Start- und Zielstep passend zum Resume-Checkpoint."""
     resume = Path(args.resume_from).expanduser().resolve()
     start_step = 0 if args.ohne_resume else checkpoint_step(resume)
     ziel_step = int(args.max_steps) if int(args.max_steps) > 0 else int(args.ziel_step)
@@ -822,7 +756,6 @@ def schreibe_training_plan(
     command: list[str],
     returncode: int | None = None,
 ) -> Path:
-    """Hält den aktuellen LoRA-Lauf in einer einzigen kleinen Statusdatei fest."""
 
     path = run_dir / "training_plan.json"
     payload: dict[str, Any] = {}
@@ -869,12 +802,6 @@ def schreibe_training_plan(
 
 
 def freigeben_checkpoint(checkpoint: Path, notiz: str = "", run_dir: Path | None = None) -> Path:
-    """Gibt einen menschlich bewerteten Checkpoint als aktiven LoRA-Adapter frei.
-
-    ``run_dir`` erlaubt die Freigabe fuer einen eigenen (z.B. genre-spezifischen)
-    Trainingslauf, ohne den geteilten Basis-Adapter/-Stand zu beruehren. Ohne
-    Angabe bleibt das Verhalten identisch zum bisherigen, einzigen Ablauf.
-    """
 
     checkpoint = checkpoint.expanduser().resolve()
     if not checkpoint.is_file():
@@ -915,14 +842,6 @@ def freigeben_checkpoint(checkpoint: Path, notiz: str = "", run_dir: Path | None
 
 
 def veroeffentliche_lora_stand(run_dir: Path, dataset_root: Path, target_step: int) -> Path:
-    """Registriert einen erfolgreichen Checkpoint zuerst als Review-Kandidat.
-
-    Frueher wurde ein fertig trainierter Checkpoint direkt als aktiver Adapter
-    benutzt. Genau dadurch konnten schlechtere spaetere Checkpoints die
-    Audioerstellung verschlechtern. Jetzt bleibt der bisher freigegebene Adapter
-    aktiv, bis der neue Checkpoint menschlich bewertet und explizit freigegeben
-    wurde.
-    """
 
     checkpoint = finde_checkpoint_mit_step(run_dir, target_step)
     if checkpoint is None:
@@ -976,6 +895,8 @@ def veroeffentliche_lora_stand(run_dir: Path, dataset_root: Path, target_step: i
     )
 
     if ist_geteilter_lauf:
+
+
         active_run_dir = STANDARD_RUN_ROOT / STANDARD_RUN_NAME
         active_run_dir.mkdir(parents=True, exist_ok=True)
         active_stand = dict(stand)
@@ -996,7 +917,6 @@ def schreibe_terminal_fortschritt(
     batch_size: int,
     gradient_accumulation: int,
 ) -> None:
-    """Aktualisiert eine einzige Terminalzeile mit minimalem Trainingsstand."""
     effektive_clips_pro_step = max(1, batch_size * gradient_accumulation)
     trainierte_clips = max(0, step - start_step) * effektive_clips_pro_step
     ziel_clips = max(1, (max_steps - start_step) * effektive_clips_pro_step)
@@ -1021,7 +941,6 @@ def fuehre_training_kompakt_aus(
     gradient_accumulation: int,
     voll: bool,
 ) -> int:
-    """Startet den Trainer und filtert die Terminalausgabe auf einen Live-Stand."""
     if voll:
         return subprocess.call(command, cwd=PROJEKTWURZEL)
 
@@ -1185,7 +1104,6 @@ def fuehre_training_kompakt_aus(
 
 
 def main() -> int:
-    """Fuehrt Vorpruefung aus und startet bei sauberem Zustand das LoRA-Training."""
     args = parse_args()
     if args.freigeben_checkpoint:
         try:

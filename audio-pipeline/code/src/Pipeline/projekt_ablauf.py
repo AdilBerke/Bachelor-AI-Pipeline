@@ -1,28 +1,4 @@
 #!/usr/bin/env python3
-"""Lokale MusicGen-Audio-Pipeline ohne Crawler/Suche.
-
-Die Pipeline beginnt bei vorhandenen lokalen Audio-/Dataset-Dateien und endet
-bei einer finalen langen Audio. Crawler, YouTube-Suche und Link-Sammlung bleiben
-bewusst getrennt.
-
-Standardlauf:
-
-    .venv/bin/python code/src/Pipeline/projekt_ablauf.py
-
-Schreibt standardmaessig einen Plan oder startet nur dann eine Generierung,
-wenn sie bewusst per Argument freigegeben wird.
-
-Nur anzeigen, was passieren wuerde:
-
-    .venv/bin/python code/src/Pipeline/projekt_ablauf.py --nur-plan
-
-Komplettlauf mit bewusst aktiviertem LoRA-Training:
-
-    .venv/bin/python code/src/Pipeline/projekt_ablauf.py \
-      --modus komplett \
-      --training-aktivieren \
-      --training-steps 500
-"""
 
 from __future__ import annotations
 
@@ -40,6 +16,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = PROJECT_ROOT / "code" / "src"
@@ -72,7 +49,6 @@ DEFAULT_MIN_RHYTHMUS_SEKUNDEN = 90.0
 
 
 def adapter_fuer_audio_freigegeben(adapter_path: Path) -> bool:
-    """Blockiert Zwischencheckpoints des noch laufenden LoRA-Trainings."""
     if not adapter_path.is_file():
         return False
     try:
@@ -100,6 +76,7 @@ def adapter_fuer_audio_freigegeben(adapter_path: Path) -> bool:
     except (OSError, json.JSONDecodeError):
         return False
     return plan.get("status") == "finished" and int(plan.get("returncode") or 0) == 0
+
 
 BAD_REVIEW_WORDS = (
     "schlecht",
@@ -131,12 +108,6 @@ GOOD_REVIEW_WORDS = (
 
 @dataclass
 class StageResult:
-    """Einheitlicher Ergebnisdatensatz fuer jede Pipeline-Stufe.
-
-    Die Reports koennen dadurch spaeter in der Bachelorarbeit nachvollziehbar
-    zeigen, welcher Schritt wann gestartet wurde, welchen Befehl er genutzt hat
-    und ob er erfolgreich war.
-    """
 
     name: str
     status: str
@@ -148,12 +119,10 @@ class StageResult:
 
 
 def now() -> str:
-    """Lokaler Zeitstempel fuer Reports und Logdateien."""
     return datetime.now().isoformat(timespec="seconds")
 
 
 def rel(path: Path) -> str:
-    """Gibt Pfade relativ zur Projektwurzel aus, falls moeglich."""
     try:
         return str(path.resolve().relative_to(PROJECT_ROOT))
     except Exception:
@@ -161,13 +130,11 @@ def rel(path: Path) -> str:
 
 
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
-    """Schreibt JSON-Reports reproduzierbar mit UTF-8 und Einrueckung."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def parse_args() -> argparse.Namespace:
-    """Definiert die Bedienung der Pipeline ueber Terminal-Argumente."""
     parser = argparse.ArgumentParser(description="MusicGen-Audio-Pipeline ohne Crawler/Suche.")
     parser.add_argument(
         "--modus",
@@ -459,7 +426,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def default_stages(mode: str) -> List[str]:
-    """Legt fest, welche Stufen pro Pipeline-Modus automatisch laufen."""
     if mode == "audio_generieren":
         return ["audio_generieren"]
     if mode == "pruefung":
@@ -470,14 +436,12 @@ def default_stages(mode: str) -> List[str]:
 
 
 def planned_stages(args: argparse.Namespace) -> List[str]:
-    """Erlaubt eine manuelle Auswahl einzelner Pipeline-Stufen."""
     if args.stufen.strip():
         return [item.strip() for item in args.stufen.split(",") if item.strip()]
     return default_stages(args.modus)
 
 
 def run_subprocess(stage: str, command: List[str], run_dir: Path, dry_run: bool) -> StageResult:
-    """Startet eine externe Stufe und schreibt parallel Terminalausgabe ins Log."""
     started = now()
     log_path = run_dir / "logs" / f"{stage}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -516,7 +480,6 @@ def run_subprocess(stage: str, command: List[str], run_dir: Path, dry_run: bool)
 
 
 def read_json_optional(path: Path) -> Dict[str, Any]:
-    """Liest einen JSON-Report, falls er existiert und gueltig ist."""
     if not path.exists():
         return {}
     try:
@@ -526,7 +489,6 @@ def read_json_optional(path: Path) -> Dict[str, Any]:
 
 
 def parse_duration_seconds(value: str) -> float:
-    """Wandelt Zeitangaben wie `30s`, `5m` oder `1h` in Sekunden um."""
     text = str(value).strip().lower().replace(",", ".")
     if not text:
         raise ValueError("Dauer fehlt.")
@@ -546,7 +508,6 @@ def resolve_rhythm_block_seconds(
     percentage: float,
     minimum_sec: float,
 ) -> float:
-    """Berechnet die Rhythmusdauer aus Gesamtdauer, Anteil und Mindestdauer."""
 
     if duration_sec <= 0:
         raise ValueError("Die Audio-Dauer muss groesser als 0 sein.")
@@ -561,7 +522,6 @@ def resolve_rhythm_block_seconds(
 
 
 def estimate_rhythm_blocks(duration_sec: float, target_sec: float, minimum_sec: float) -> int:
-    """Schaetzt gleichmaessige Rhythmusbloecke ohne zu kurzen Schlussblock."""
 
     if duration_sec <= 0:
         return 0
@@ -572,7 +532,6 @@ def estimate_rhythm_blocks(duration_sec: float, target_sec: float, minimum_sec: 
 
 
 def estimate_sections(duration_sec: float, section_sec: float, crossfade_sec: float) -> int:
-    """Schaetzt, wie viele frische Clips fuer die Longform-Audio noetig sind."""
     if duration_sec <= 0:
         return 0
     if section_sec <= 0:
@@ -584,12 +543,6 @@ def estimate_sections(duration_sec: float, section_sec: float, crossfade_sec: fl
 
 
 def automatic_candidate_limit(estimated_sections: int, candidates_per_section: int) -> int:
-    """Setzt ein sparsames Limit mit Reserve fuer verworfene Kandidaten.
-
-    Die technischen Filter verwerfen bewusst Clips. Ein Limit von exakt
-    `Abschnitte * Kandidaten` ist deshalb zu knapp und blockiert gute Laeufe,
-    sobald auch nur ein Abschnitt neu geplant werden muss.
-    """
 
     sections = max(1, int(estimated_sections))
     candidates = max(1, int(candidates_per_section))
@@ -599,12 +552,10 @@ def automatic_candidate_limit(estimated_sections: int, candidates_per_section: i
 
 
 def audio_stage_requested(stages: List[str]) -> bool:
-    """Erkennt, ob ein Lauf echte MusicGen-Audioabschnitte erzeugen wuerde."""
     return "audio_generieren" in stages
 
 
 def apply_safety_mode(args: argparse.Namespace, stages: List[str]) -> Dict[str, Any]:
-    """Erstellt den Kosten-/Sicherheitsplan und entschärft riskante Defaults."""
     duration_sec = parse_duration_seconds(args.dauer)
     crossfade_sec = min(max(0.0, args.crossfade_sekunden), max(1.0, args.abschnitt_sekunden * 0.20))
     requested_block_seconds = float(args.block_sekunden)
@@ -682,7 +633,6 @@ def apply_safety_mode(args: argparse.Namespace, stages: List[str]) -> Dict[str, 
 
 
 def write_generation_budget(run_dir: Path, budget: Dict[str, Any]) -> None:
-    """Schreibt einen kompakten Plan, bevor MusicGen GPU-Zeit verbraucht."""
     path = run_dir / "audio_generierung" / "generierungs_plan.json"
     write_json(path, {"created_at": now(), **budget})
     md = [
@@ -709,12 +659,10 @@ def write_generation_budget(run_dir: Path, budget: Dict[str, Any]) -> None:
 
 
 def yes_no(value: Any) -> str:
-    """Gibt boolesche Werte fuer Terminalausgaben deutsch und kurz aus."""
     return "ja" if bool(value) else "nein"
 
 
 def percent_from_progress(progress: Dict[str, Any]) -> Optional[float]:
-    """Liest den Fortschritt robust aus alten und neuen Fortschrittsdateien."""
     value = progress.get("progress_percent", progress.get("percent"))
     try:
         return float(value)
@@ -723,7 +671,6 @@ def percent_from_progress(progress: Dict[str, Any]) -> Optional[float]:
 
 
 def progress_value(progress: Dict[str, Any], key: str, fallback: Any = "?") -> Any:
-    """Holt einen Wert aus dem Fortschritt, ohne leere Werte schoenzureden."""
     value = progress.get(key)
     return fallback if value in (None, "") else value
 
@@ -735,7 +682,6 @@ def format_live_dashboard(
     budget: Dict[str, Any],
     waiting: bool = False,
 ) -> str:
-    """Erzeugt einen kompakten Live-Block fuer den laufenden Fortschritt."""
     percent = percent_from_progress(progress)
     percent_text = "  0.00%" if waiting else "  ?.??%"
     if percent is not None:
@@ -764,7 +710,6 @@ def format_live_dashboard(
 
 
 def print_live_block(block: str, previous_lines: int) -> int:
-    """Aktualisiert einen mehrzeiligen Terminal-Block an derselben Stelle."""
     lines = block.splitlines()
     if previous_lines and sys.stdout.isatty():
         sys.stdout.write(f"\033[{previous_lines}F")
@@ -779,14 +724,12 @@ def print_live_block(block: str, previous_lines: int) -> int:
 
 
 def finish_live_block(previous_lines: int) -> None:
-    """Trennt den Live-Block sauber von nachfolgender Terminalausgabe."""
     if previous_lines > 0:
         sys.stdout.write("\n")
         sys.stdout.flush()
 
 
 def final_audio_from_results(results: List[StageResult]) -> Optional[str]:
-    """Findet die finale Audio-Datei aus den Stufen-Details."""
     for result in reversed(results):
         detail = result.detail or {}
         final_audio = detail.get("final_audio")
@@ -796,7 +739,6 @@ def final_audio_from_results(results: List[StageResult]) -> Optional[str]:
 
 
 def project_path(value: str) -> Path:
-    """Wandelt relative Reportpfade in absolute Projektpfade um."""
     path = Path(value).expanduser()
     if path.is_absolute():
         return path
@@ -804,7 +746,6 @@ def project_path(value: str) -> Path:
 
 
 def build_postprocessing_command(final_audio: str, args: argparse.Namespace) -> List[str]:
-    """Erstellt den Befehl fuer die nachgelagerte Audioverbesserung."""
     input_path = project_path(final_audio)
     output_dir = input_path.parent / "postprocessing"
     command = [
@@ -840,7 +781,6 @@ def run_postprocessing_stage(
     run_dir: Path,
     dry_run: bool,
 ) -> StageResult:
-    """Fuehrt Postprocessing aus und uebernimmt dessen Ergebnis in die Pipeline."""
     command = build_postprocessing_command(final_audio, args)
     output_dir = project_path(value_after(command, "--output-dir") or "")
     result = run_subprocess("postprocessing", command, run_dir, dry_run)
@@ -863,7 +803,6 @@ def run_postprocessing_stage(
 
 
 def build_referenzvergleich_command(final_audio: str, args: argparse.Namespace, run_dir: Path) -> List[str]:
-    """Erstellt den Befehl fuer den Vergleich gegen gute MP3-Referenzen."""
     input_path = project_path(final_audio)
     output_dir = run_dir / "referenzvergleich"
     return [
@@ -888,7 +827,6 @@ def run_referenzvergleich_stage(
     run_dir: Path,
     dry_run: bool,
 ) -> StageResult:
-    """Vergleicht die finale Audio automatisch mit dem MP3-Referenzstandard."""
     command = build_referenzvergleich_command(final_audio, args, run_dir)
     result = run_subprocess("referenzvergleich", command, run_dir, dry_run)
     output_dir = run_dir / "referenzvergleich"
@@ -910,7 +848,6 @@ def run_referenzvergleich_stage(
 
 
 def print_pipeline_finish(report: Dict[str, Any], results: List[StageResult], run_dir: Path) -> None:
-    """Gibt am Ende nur eine kurze Terminal-Zusammenfassung aus."""
     status = str(report.get("status") or "unbekannt")
     print("", flush=True)
     print("Abschluss", flush=True)
@@ -925,7 +862,6 @@ def print_pipeline_finish(report: Dict[str, Any], results: List[StageResult], ru
 
 
 def value_after(command: List[str], flag: str) -> Optional[str]:
-    """Findet den Wert direkt nach einem CLI-Flag in einer Befehlsliste."""
     try:
         index = command.index(flag)
     except ValueError:
@@ -936,7 +872,6 @@ def value_after(command: List[str], flag: str) -> Optional[str]:
 
 
 def replace_or_append_flag(command: List[str], flag: str, value: str) -> List[str]:
-    """Ersetzt einen CLI-Wert oder haengt ihn an, wenn das Flag fehlt."""
     updated = list(command)
     try:
         index = updated.index(flag)
@@ -951,13 +886,11 @@ def replace_or_append_flag(command: List[str], flag: str, value: str) -> List[st
 
 
 def audio_output_dir(command: List[str]) -> Path:
-    """Bestimmt den Ausgabeordner der neuen Longform-Stufe aus dem Befehl."""
     name = value_after(command, "--name") or "audio"
     return PROJECT_ROOT / "training" / "ausgaben" / "musicgen_generiert" / name
 
 
 def audio_final_exists(command: List[str], output_dir: Path) -> bool:
-    """Prueft, ob die finale Longform-Audio wirklich fertig geschrieben wurde."""
     wav_path = output_dir / "lange_audio.wav"
     mp3_path = output_dir / "lange_audio.mp3"
     info_path = output_dir / "finale_audio_info.json"
@@ -978,14 +911,6 @@ def run_audio_with_resume(
     args: Optional[argparse.Namespace] = None,
     budget: Optional[Dict[str, Any]] = None,
 ) -> StageResult:
-    """Fuehrt die Audioerstellung mit kontrollierter automatischer Fortsetzung aus.
-
-    MusicGen/AudioCraft kann nach vielen Kandidaten in einem langen Python-
-    Prozess native CUDA/PyTorch-Fehler werfen. Die eigentliche Longform-Funktion
-    schreibt nach jedem akzeptierten Abschnitt Fortschritt und Clips weg. Diese
-    Pipeline-Stufe nutzt das: Bei einem Abbruch wird derselbe Befehl erneut
-    gestartet und `audio_erstellen.py` setzt am letzten guten Abschnitt fort.
-    """
 
     started = now()
     output_dir = audio_output_dir(command)
@@ -1209,12 +1134,6 @@ def run_audio_with_resume(
 
 
 def write_structure_report(run_dir: Path) -> Dict[str, Any]:
-    """Dokumentiert die fuer MusicGen relevanten Projektordner.
-
-    Dieser Schritt ist absichtlich lesend. Er hilft, vor einem Experiment zu
-    pruefen, ob Daten, Modelle, Training, Ausgaben und Bewertungen dort liegen,
-    wo die Pipeline sie erwartet.
-    """
 
     relevant = [
         "daten/raw",
@@ -1271,7 +1190,6 @@ def write_structure_report(run_dir: Path) -> Dict[str, Any]:
 
 
 def parse_review_line(line: str) -> Optional[Dict[str, str]]:
-    """Parst eine Zeile aus der deutschen Bewertungs-CSV."""
     if not line.strip() or line.lower().startswith("sample,"):
         return None
     parts = line.rstrip("\n").split(",", 4)
@@ -1287,7 +1205,6 @@ def parse_review_line(line: str) -> Optional[Dict[str, str]]:
 
 
 def review_is_positive(note: str) -> bool:
-    """Klassifiziert eine menschliche Notiz grob als positiv oder problematisch."""
     text = note.lower()
     if any(word in text for word in BAD_REVIEW_WORDS):
         return False
@@ -1295,7 +1212,6 @@ def review_is_positive(note: str) -> bool:
 
 
 def discover_positive_review_audio() -> List[Path]:
-    """Sucht bereits bewertete Audios, die fuer Longform geeignet wirken."""
     files: List[Path] = []
     for csv_path in sorted((PROJECT_ROOT / "training" / "bewertungen" / "musicgen").glob("durchgang_*/bewertung.csv")):
         for line in csv_path.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -1309,7 +1225,6 @@ def discover_positive_review_audio() -> List[Path]:
 
 
 def fallback_loop_sources() -> List[Path]:
-    """Fallback-Quellen, falls keine eindeutig positiven Bewertungsclips gefunden werden."""
     candidates = [
         PROJECT_ROOT / "training" / "bewertungen" / "musicgen" / "beste_referenz" / "audio",
         PROJECT_ROOT / "training" / "bewertungen" / "musicgen" / "durchgang_010" / "audio",
@@ -1320,7 +1235,6 @@ def fallback_loop_sources() -> List[Path]:
 
 
 def resolve_loop_sources(args: argparse.Namespace, run_dir: Path) -> List[Path]:
-    """Bestimmt, welche Audios fuer die finale lange Audio verwendet werden."""
     if args.loop_source:
         sources = [Path(item).expanduser() for item in args.loop_source]
         sources = [(PROJECT_ROOT / path).resolve() if not path.is_absolute() else path.resolve() for path in sources]
@@ -1334,7 +1248,6 @@ def resolve_loop_sources(args: argparse.Namespace, run_dir: Path) -> List[Path]:
 
 
 def adapter_after_training(args: argparse.Namespace, training_run_name: str) -> Path:
-    """Findet nach optionalem Training den zuletzt erzeugten LoRA-Adapter."""
     report = PROJECT_ROOT / "training" / "musicgen" / "melody_large_lora" / training_run_name / "abschluss.json"
     if report.exists():
         try:
@@ -1348,13 +1261,6 @@ def adapter_after_training(args: argparse.Namespace, training_run_name: str) -> 
 
 
 def checkpoint_step_from_path(path: Path) -> int:
-    """Liest die technische Step-Zahl aus dem Ordnernamen.
-
-    Das LoRA-Training erwartet `--max-steps` als absolute Zielmarke. Fuer die
-    Pipeline soll `--training-steps 500` aber als "500 weitere Steps" lesbar
-    sein. Deshalb wird hier aus dem stabilen Referenzcheckpoint der Start-Step
-    bestimmt und spaeter addiert.
-    """
 
     for part in reversed(path.parts):
         if part.startswith("step_"):
@@ -1371,11 +1277,6 @@ def build_command_for_stage(
     training_run_name: str,
     adapter_path: Path,
 ) -> Optional[List[str]]:
-    """Uebersetzt eine Pipeline-Stufe in den passenden Unterbefehl.
-
-    Die eigentlichen Spezialaufgaben bleiben in `datensatz.py` und `musicgen_steuerung.py`.
-    Diese Pipeline koordiniert nur die Reihenfolge und die Parameter.
-    """
 
     dataset_root = Path(args.dataset_root).expanduser().resolve()
     if stage == "validate":
@@ -1637,7 +1538,6 @@ def build_command_for_stage(
 
 
 def main() -> int:
-    """Fuehrt den kompletten Pipeline-Lauf aus und schreibt den Abschlussreport."""
     args = parse_args()
     run_name = args.run_name or f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     run_dir = Path(args.pipeline_root).expanduser()
