@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
+import { Route as StudioEndproduktRouteImport } from './routes/studio.endprodukt'
 import { Route as StudioEvaluationRouteImport } from './routes/studio.evaluation'
 import { Route as StudioGenerateRouteImport } from './routes/studio.generate'
 import { Route as StudioImportRouteImport } from './routes/studio.import'
@@ -34,6 +35,11 @@ const StudioRoute = StudioRouteImport.update({
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioEndproduktRoute = StudioEndproduktRouteImport.update({
+  id: '/endprodukt',
+  path: '/endprodukt',
   getParentRoute: () => StudioRoute,
 } as any)
 const StudioEvaluationRoute = StudioEvaluationRouteImport.update({
@@ -80,6 +86,7 @@ const StudioLibraryIdRoute = StudioLibraryIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/endprodukt': typeof StudioEndproduktRoute
   '/studio/evaluation': typeof StudioEvaluationRoute
   '/studio/generate': typeof StudioGenerateRoute
   '/studio/import': typeof StudioImportRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/studio/endprodukt': typeof StudioEndproduktRoute
   '/studio/evaluation': typeof StudioEvaluationRoute
   '/studio/generate': typeof StudioGenerateRoute
   '/studio/import': typeof StudioImportRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/endprodukt': typeof StudioEndproduktRoute
   '/studio/evaluation': typeof StudioEvaluationRoute
   '/studio/generate': typeof StudioGenerateRoute
   '/studio/import': typeof StudioImportRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/studio'
+    | '/studio/endprodukt'
     | '/studio/evaluation'
     | '/studio/generate'
     | '/studio/import'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/studio/endprodukt'
     | '/studio/evaluation'
     | '/studio/generate'
     | '/studio/import'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/studio'
+    | '/studio/endprodukt'
     | '/studio/evaluation'
     | '/studio/generate'
     | '/studio/import'
@@ -183,6 +195,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/studio/'
       preLoaderRoute: typeof StudioIndexRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/endprodukt': {
+      id: '/studio/endprodukt'
+      path: '/endprodukt'
+      fullPath: '/studio/endprodukt'
+      preLoaderRoute: typeof StudioEndproduktRouteImport
       parentRoute: typeof StudioRoute
     }
     '/studio/evaluation': {
@@ -245,6 +264,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface StudioRouteChildren {
+  StudioEndproduktRoute: typeof StudioEndproduktRoute
   StudioEvaluationRoute: typeof StudioEvaluationRoute
   StudioGenerateRoute: typeof StudioGenerateRoute
   StudioImportRoute: typeof StudioImportRoute
@@ -257,6 +277,7 @@ interface StudioRouteChildren {
 }
 
 const StudioRouteChildren: StudioRouteChildren = {
+  StudioEndproduktRoute: StudioEndproduktRoute,
   StudioEvaluationRoute: StudioEvaluationRoute,
   StudioGenerateRoute: StudioGenerateRoute,
   StudioImportRoute: StudioImportRoute,

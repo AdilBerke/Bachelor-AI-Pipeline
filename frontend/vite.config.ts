@@ -12,4 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Allows the dev server to be reached through changing tunnel hostnames
+    // (e.g. trycloudflare.com quick tunnels), should one be set up again later.
+    server: { allowedHosts: true },
+  },
 });

@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { getSettings, saveSettings } from "../lib/settings";
 
 function NotFoundComponent() {
   return (
@@ -126,6 +127,13 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    const apiOverride = new URLSearchParams(window.location.search).get("api");
+    if (apiOverride) {
+      saveSettings({ ...getSettings(), apiUrl: apiOverride });
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

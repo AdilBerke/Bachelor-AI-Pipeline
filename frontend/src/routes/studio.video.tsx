@@ -650,9 +650,9 @@ function PhaseBar({ current }: { current: Phase }) {
 
 const READY_GIFS = [
   {
-    videoPath: "rabbit_lake/rounds/round_08/samples/r8_s80_g9_seed777.mp4",
+    videoPath: "rabbit_lake/rounds/round_07/samples/step_00100_0.mp4",
     title: "Rabbits by the Lake",
-    description: "Zwei Hasen am dunklen See bei Nacht · rabbit_lake R8",
+    description: "Zwei Hasen am dunklen See bei Nacht · rabbit_lake R7",
   },
   {
     videoPath: "rainy_window/rounds/round_14/samples/step_00100_0.mp4",
@@ -660,9 +660,9 @@ const READY_GIFS = [
     description: "Fensterszene im Regen, warmes Licht · rainy_window R14",
   },
   {
-    videoPath: "rainy_window/rounds/round_09/samples/step_00075_0_hd2x_60fps_rife.mp4",
-    title: "Rainy Window — HD",
-    description: "2× HD, 60fps RIFE · rainy_window R9 Remaster",
+    videoPath: "golden_hour_lake/rounds/round_06/samples/step_00040_0_final.mp4",
+    title: "Golden Hour Lake",
+    description: "Hase im See bei Sonnenuntergang · golden_hour_lake R6",
   },
 ];
 

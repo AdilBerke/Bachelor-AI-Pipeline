@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AudioLines,
+  Combine,
   Cpu,
   Film,
   Library,
@@ -18,6 +19,7 @@ type NavItem = {
     | "/studio/import"
     | "/studio/generate"
     | "/studio/video"
+    | "/studio/endprodukt"
     | "/studio/library"
     | "/studio/evaluation"
     | "/studio/jobs"
@@ -31,6 +33,7 @@ const nav: NavItem[] = [
   { to: "/studio/import", label: "Quellen", icon: LinkIcon, exact: true },
   { to: "/studio/generate", label: "Audio", icon: Waves },
   { to: "/studio/video", label: "Video", icon: Film },
+  { to: "/studio/endprodukt", label: "Endprodukt", icon: Combine },
   { to: "/studio/library", label: "Bibliothek", icon: Library },
   { to: "/studio/evaluation", label: "Bewertung", icon: Radar },
   { to: "/studio/jobs", label: "Läufe", icon: ListChecks },

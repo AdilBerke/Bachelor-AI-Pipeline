@@ -210,6 +210,15 @@ export interface VideoGalleryItem {
   step?: number;
 }
 
+export interface FinalProduct {
+  id: string;
+  audioTitel: string;
+  videoLabel: string;
+  createdAt: string;
+  sizeBytes: number;
+  url: string;
+}
+
 export interface YoutubeMp3ImportRequest {
   url: string;
   genre?: string;
@@ -455,6 +464,12 @@ export const api = {
     withMock(
       () => request<VideoGalleryItem[]>("/api/video-gallery"),
       () => [] as VideoGalleryItem[],
+    ),
+
+  finalProducts: () =>
+    withMock(
+      () => request<FinalProduct[]>("/api/final-products"),
+      () => [] as FinalProduct[],
     ),
 
   importYoutubeMp3: (body: YoutubeMp3ImportRequest) =>
