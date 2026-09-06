@@ -67,6 +67,8 @@ lightning_logs/
 *.gif
 *.pt
 *.pth
+# Ausnahme: der in der Arbeit verwendete LoRA-Adapter wird per Git LFS mitgeliefert
+!models/lora_adapter.pt
 *.ckpt
 *.safetensors
 *.bin
