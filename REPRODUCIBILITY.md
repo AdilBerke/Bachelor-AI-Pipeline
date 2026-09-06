@@ -85,6 +85,17 @@ laufenden Entwicklungsumgebung — u. a. `audiocraft`, `transformers`, `xformers
 `--extra-index-url` ist nötig, weil `torch`/`torchaudio` als `+cu124`-Build referenziert sind, der nur
 im PyTorch-eigenen Wheel-Index liegt, nicht auf PyPI selbst.
 
+> **Falls die Installation beim Paket `ltxv_trainer` abbricht:** Das Trainer-Repository
+> enthält ein Banner-Bild als Git-LFS-Objekt. Ist der LFS-Endpunkt
+> (`github-cloud.githubusercontent.com`) durch Firewall oder Proxy blockiert, scheitert
+> `pip` beim Klonen mit `exit code: 128` — obwohl die Datei für die Funktion irrelevant
+> ist. Abhilfe: den LFS-Download überspringen.
+>
+> ```bash
+> GIT_LFS_SKIP_SMUDGE=1 .venv/bin/pip install \
+>   --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements.txt
+> ```
+
 Die `.venv` liegt in der Repo-Wurzel — alle Befehle für **beide** Pipelines nutzen diesen einen
 Interpreter, sämtliche Beispiele unten sind entsprechend von der Wurzel aus formuliert.
 
