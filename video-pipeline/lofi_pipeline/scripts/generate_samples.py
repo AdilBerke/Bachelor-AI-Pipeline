@@ -48,6 +48,28 @@ def make_gif(mp4_path, gif_path, fps=8, scale=624):
 
 
 MAKE_GIF_SCRIPT = PIPELINE_ROOT / "scripts" / "make_gif.py"
+EVALUATE_SCRIPT = PIPELINE_ROOT.parent / "pipeline" / "realistic_rabbit" / "evaluate_video.py"
+
+
+def score_video(mp4_path: Path, python_bin: str):
+    """Best-effort Schaerfe-/Qualitaetsbewertung -> <mp4>.metrics.json. Bricht nie ab."""
+    if not EVALUATE_SCRIPT.exists() or not mp4_path.exists():
+        return
+    try:
+        subprocess.run(
+            [python_bin, str(EVALUATE_SCRIPT), str(mp4_path),
+             "--save-report", "--max-frames", "61"],
+            capture_output=True, text=True, timeout=300,
+        )
+        mj = mp4_path.with_suffix(".metrics.json")
+        if mj.exists():
+            _m = json.loads(mj.read_text())
+            s = _m.get("sharpness", {})
+            n = _m.get("niqe", {})
+            nstr = f"  NIQE {n.get('mean')}" if n.get("available") else ""
+            print(f"  Schaerfe-Score {s.get('score_100', '?')}/100{nstr}  ({mp4_path.name})")
+    except Exception as e:  # noqa: BLE001
+        print(f"  (Bewertung uebersprungen: {e})")
 
 
 def run_make_gif_pipeline(mp4_path: Path, paths_cfg: dict):
@@ -66,6 +88,7 @@ def run_make_gif_pipeline(mp4_path: Path, paths_cfg: dict):
             print(f"  GIF:  {gif.name}")
         if upscaled.exists():
             print(f"  MP4 (upscaled): {upscaled.name}")
+            score_video(upscaled, paths_cfg["python"])
 
 
 def generate_for_checkpoint(scenario_cfg, paths_cfg, ckpt_path, output_mp4, seed, make_gif_flag, gpu_fraction=1.0):
@@ -127,6 +150,7 @@ def main():
 
     seed = args.seed if args.seed is not None else scenario_cfg["seed"]
 
+    # --gif-only: run full GIF+MP4 pipeline on existing MP4s without re-generation
     if args.gif_only:
         mp4s = sorted(p for p in samples_dir.glob("step_*.mp4") if "upscaled" not in p.stem)
         if not mp4s:
@@ -167,6 +191,7 @@ def main():
         step_num = int(ckpt.stem.split("_")[-1])
         mp4_out = samples_dir / f"step_{step_num:05d}_0.mp4"
         if i > 0:
+            # Brief pause between generations to allow GPU memory to fully release
             time.sleep(8)
         ok = generate_for_checkpoint(scenario_cfg, paths_cfg, ckpt, mp4_out, seed, args.gif, gpu_fraction=args.gpu_fraction)
         if ok:

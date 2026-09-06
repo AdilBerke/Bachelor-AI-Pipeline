@@ -17,6 +17,7 @@ Verwendung:
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,7 +25,15 @@ import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 
+# NIQE laeuft in einem isolierten venv (pyiqa verlangt transformers>=5, was mit
+# der LTX-Pipeline der Haupt-venv kollidiert). Fehlt das venv, wird NIQE einfach
+# weggelassen — alle anderen Metriken bleiben unberuehrt.
+_BA_ROOT = Path(__file__).resolve().parents[2]           # .../Bachelorarbeit
+NIQE_VENV_PY = _BA_ROOT / ".venv-niqe" / "bin" / "python"
+NIQE_WORKER = _BA_ROOT / "lofi_pipeline" / "scripts" / "_niqe_worker.py"
 
+
+# ── Farb-Hilfsfunktionen ────────────────────────────────────────────────────
 
 def clr(c, t): return f"\033[{c}m{t}\033[0m"
 def cyan(t):   return clr("36", t)
@@ -41,12 +50,13 @@ def score_color(val, good_high=True):
         if val >= 0.8: return green(f"{val:.4f}")
         if val >= 0.6: return yellow(f"{val:.4f}")
         return red(f"{val:.4f}")
-    else:
+    else:  # niedrig ist gut (z.B. Flicker)
         if val <= 0.02: return green(f"{val:.4f}")
         if val <= 0.06: return yellow(f"{val:.4f}")
         return red(f"{val:.4f}")
 
 
+# ── Frame-Extraktion ─────────────────────────────────────────────────────────
 
 def extract_frames(video_path: Path, max_frames=None):
     """Gibt alle Frames als numpy-Array (H, W, 3) zurueck."""
@@ -68,6 +78,7 @@ def extract_frames(video_path: Path, max_frames=None):
     return frames, fps, (w, h), total
 
 
+# ── Metrik 1: Temporal SSIM ─────────────────────────────────────────────────
 
 def temporal_ssim(frames):
     """
@@ -85,23 +96,108 @@ def temporal_ssim(frames):
     return float(np.mean(scores)), float(np.min(scores)), float(np.std(scores))
 
 
+# ── Metrik 2: Sharpness (Laplacian + Tenengrad + FFT) ──────────────────────
+
+# Referenzwerte fuer den absoluten 0-100 Score. Empirisch aus den generierten
+# Szenario-Clips (golden_hour_lake / rabbit_lake / rainy_window): der schaerfste
+# gute Clip lag bei lap-var ~640, Tenengrad ~12000, FFT-Hochanteil ~0.35..0.65.
+_REF_LAPLACIAN = 800.0
+_REF_TENENGRAD = 12000.0
+_FFT_LO, _FFT_HI = 0.35, 0.65
+
+
+def _tenengrad_frame(gray):
+    gx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+    gy = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+    return float(np.mean(gx * gx + gy * gy))
+
+
+def _fft_high_ratio_frame(gray, frac=0.25):
+    """Energieanteil ausserhalb des zentralen Tiefpass-Fensters (0..1)."""
+    f = np.fft.fftshift(np.fft.fft2(gray.astype(np.float64)))
+    mag = np.abs(f)
+    h, w = mag.shape
+    cy, cx = h // 2, w // 2
+    ry, rx = int(h * frac / 2), int(w * frac / 2)
+    total = mag.sum() + 1e-12
+    low = mag[cy - ry:cy + ry, cx - rx:cx + rx].sum()
+    return float(1.0 - low / total)
+
 
 def sharpness_score(frames):
     """
-    Laplacian-Varianz pro Frame — hohe Varianz = scharfes Bild.
-    Normiert auf 0-1 (gegen 3000 Referenzwert fuer HD-Foto).
-    Typische gute Werte: > 0.3 (alles < 0.1 ist sehr unscharf)
+    Schaerfe pro Frame ueber drei etablierte No-Reference-Masse, gemittelt:
+      - Laplacian-Varianz  (Standard-Schaerfemass, Pech-Pacheco 2000)
+      - Tenengrad          (Sobel-Gradientenenergie, rauschrobuster)
+      - FFT-Hochfrequenzanteil (0-1, weitgehend aufloesungsunabhaengig)
+
+    Rueckgabe: dict mit
+      score_100      – heuristischer ABSOLUTER 0-100 Score (feste Referenzwerte;
+                       fuer exakte Vergleiche mehrerer Clips lieber
+                       lofi_pipeline/scripts/schaerfe_bewertung.py im Batch-Modus)
+      normalized     – Laplacian/3000 geclippt (unveraendert, Rueckwaertskompat.)
+      raw_laplacian  – mittlere Laplacian-Varianz
+      tenengrad      – mittlere Sobel-Gradientenenergie
+      fft_high_ratio – mittlerer Hochfrequenzanteil (0-1)
+      konstanz       – 0-100, wie gleich scharf ueber alle Frames (100 = konstant)
+      std            – Streuung der Laplacian-Varianz ueber die Frames
     """
-    scores = []
+    lap, ten, fft = [], [], []
     for frame in frames:
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        lap = cv2.Laplacian(gray, cv2.CV_64F).var()
-        scores.append(lap)
-    raw_mean = float(np.mean(scores))
-    normalized = min(raw_mean / 3000.0, 1.0)
-    return normalized, raw_mean, float(np.std(scores))
+        lap.append(cv2.Laplacian(gray, cv2.CV_64F).var())
+        ten.append(_tenengrad_frame(gray))
+        fft.append(_fft_high_ratio_frame(gray))
+    lap = np.asarray(lap, dtype=np.float64)
+    ten = np.asarray(ten, dtype=np.float64)
+    fft = np.asarray(fft, dtype=np.float64)
+
+    raw_mean = float(lap.mean())
+    ten_mean = float(ten.mean())
+    fft_mean = float(fft.mean())
+
+    s_lap = min(raw_mean / _REF_LAPLACIAN, 1.0)
+    s_ten = min(ten_mean / _REF_TENENGRAD, 1.0)
+    s_fft = min(max((fft_mean - _FFT_LO) / (_FFT_HI - _FFT_LO), 0.0), 1.0)
+    score_100 = round(100.0 * (0.40 * s_lap + 0.30 * s_ten + 0.30 * s_fft), 1)
+
+    cv_lap = float(lap.std() / (lap.mean() + 1e-9))
+    konstanz = round(100.0 * max(0.0, 1.0 - min(cv_lap, 1.0)), 1)
+
+    return {
+        "score_100": score_100,
+        "normalized": round(min(raw_mean / 3000.0, 1.0), 4),
+        "raw_laplacian": round(raw_mean, 2),
+        "tenengrad": round(ten_mean, 1),
+        "fft_high_ratio": round(fft_mean, 4),
+        "konstanz": konstanz,
+        "std": round(float(lap.std()), 2),
+    }
 
 
+# ── Metrik 2b: NIQE (blind, gesamte wahrgenommene Qualitaet) ────────────────
+
+def niqe_score(video_path, max_frames=61):
+    """NIQE via isoliertem venv (siehe _niqe_worker.py). Voll-blind, kein
+    Training auf Meinungswerten; NIEDRIGER = besser. Gibt {"available": False, ...}
+    zurueck, wenn das venv fehlt oder der Aufruf scheitert — nie eine Exception."""
+    if not NIQE_VENV_PY.exists() or not NIQE_WORKER.exists():
+        return {"available": False, "reason": "isoliertes NIQE-venv nicht vorhanden"}
+    try:
+        r = subprocess.run(
+            [str(NIQE_VENV_PY), str(NIQE_WORKER), str(video_path),
+             "--max-frames", str(max_frames)],
+            capture_output=True, text=True, timeout=180,
+        )
+        line = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+        data = json.loads(line)
+        data.setdefault("available", False)
+        return data
+    except Exception as e:  # noqa: BLE001
+        return {"available": False, "reason": str(e)[:200]}
+
+
+# ── Metrik 3: Flicker Score ──────────────────────────────────────────────────
 
 def flicker_score(frames):
     """
@@ -118,6 +214,7 @@ def flicker_score(frames):
     return float(np.mean(diffs)), float(np.max(diffs)), float(np.std(diffs))
 
 
+# ── Metrik 4: Motion Score (Optischer Fluss) ────────────────────────────────
 
 def _optical_flow_magnitudes(frames):
     """Optischer Fluss für alle Frame-Paare — intern wiederverwendet."""
@@ -133,18 +230,19 @@ def _optical_flow_magnitudes(frames):
     return magnitudes
 
 
-def motion_score(frames):
+def motion_score(frames, magnitudes=None):
     """
     Farneback Optischer Fluss — mittlere Bewegungsmagnitude pro Frame-Paar.
     0.0 = komplett eingefroren
     0.5-2.0 = dezente natuerliche Bewegung (ideal)
     >5.0 = starke / unruhige Bewegung
     """
-    magnitudes = _optical_flow_magnitudes(frames)
+    if magnitudes is None:
+        magnitudes = _optical_flow_magnitudes(frames)
     return float(np.mean(magnitudes)), float(np.max(magnitudes))
 
 
-def motion_smoothness(frames):
+def motion_smoothness(frames, magnitudes=None):
     """
     Gleichmaessigkeit der Bewegung via Variationskoeffizient (CV) des optischen Flusses.
     CV = std / mean — misst wie konsistent die Bewegungsstaerke ueber alle Frames ist.
@@ -152,15 +250,17 @@ def motion_smoothness(frames):
     Hoch = ruckartige oder chaotische Bewegung.
     Rueckgabe: smoothness (0-1, hoeher = besser), cv (roher Koeffizient)
     """
-    magnitudes = _optical_flow_magnitudes(frames)
+    if magnitudes is None:
+        magnitudes = _optical_flow_magnitudes(frames)
     mean = float(np.mean(magnitudes))
     if mean < 0.01:
-        return 1.0, 0.0
+        return 1.0, 0.0  # statisch = per Definition glatt
     cv = float(np.std(magnitudes) / mean)
-    smoothness = max(0.0, 1.0 - min(cv, 2.0) / 2.0)
+    smoothness = max(0.0, 1.0 - min(cv, 2.0) / 2.0)  # CV > 2.0 → 0.0
     return smoothness, round(cv, 4)
 
 
+# ── Metrik 5: Color Consistency ─────────────────────────────────────────────
 
 def color_consistency(frames):
     """
@@ -170,19 +270,21 @@ def color_consistency(frames):
     means = []
     for frame in frames:
         means.append([
-            np.mean(frame[:, :, 0]),
-            np.mean(frame[:, :, 1]),
-            np.mean(frame[:, :, 2]),
+            np.mean(frame[:, :, 0]),  # R
+            np.mean(frame[:, :, 1]),  # G
+            np.mean(frame[:, :, 2]),  # B
         ])
     means = np.array(means)
     std_r = float(np.std(means[:, 0]))
     std_g = float(np.std(means[:, 1]))
     std_b = float(np.std(means[:, 2]))
     avg_std = (std_r + std_g + std_b) / 3.0
+    # Normiert: 0 = perfekt stabil, 1 = stark wechselnd (255 Einheiten)
     consistency = max(0.0, 1.0 - avg_std / 30.0)
     return consistency, std_r, std_g, std_b
 
 
+# ── Metrik 6: Brightness Consistency ────────────────────────────────────────
 
 def brightness_consistency(frames):
     """
@@ -199,24 +301,25 @@ def brightness_consistency(frames):
     return consistency, mean, std
 
 
+# ── Gesamt-Score ────────────────────────────────────────────────────────────
 
 def compute_overall(metrics):
     """
     Gewichteter Gesamtscore aus allen Metriken (0.0 - 1.0).
     Hoeher = besser.
     """
-    ssim_w       = 0.35
-    sharpness_w  = 0.20
-    flicker_inv_w= 0.20
-    motion_w     = 0.10
-    color_w      = 0.10
-    bright_w     = 0.05
+    ssim_w       = 0.35  # Temporale Stabilitaet — wichtigste Metrik
+    sharpness_w  = 0.20  # Schaerfe
+    flicker_inv_w= 0.20  # Flicker (invertiert: niedrig = gut)
+    motion_w     = 0.10  # Moderate Bewegung bevorzugt
+    color_w      = 0.10  # Farbstabilitaet
+    bright_w     = 0.05  # Helligkeitsstabilitaet
 
     ssim_score = metrics["temporal_ssim"]["mean"]
     sharp_score = min(metrics["sharpness"]["normalized"], 1.0)
     flicker_inv = max(0.0, 1.0 - metrics["flicker"]["mean"] / 0.1)
     motion = metrics["motion"]["mean"]
-    motion_score = 1.0 - min(abs(motion - 1.5) / 5.0, 1.0)
+    motion_score = 1.0 - min(abs(motion - 1.5) / 5.0, 1.0)  # optimal ~1.5 px/frame
     color_score = metrics["color_consistency"]["consistency"]
     bright_score = metrics["brightness_consistency"]["consistency"]
 
@@ -231,22 +334,26 @@ def compute_overall(metrics):
     return round(float(overall), 4)
 
 
+# ── Analyse ─────────────────────────────────────────────────────────────────
 
-def analyze_video(video_path: Path, verbose=True):
-    frames, fps, (w, h), total = extract_frames(video_path)
+def analyze_video(video_path: Path, verbose=True, max_frames=None):
+    frames, fps, (w, h), total = extract_frames(video_path, max_frames=max_frames)
 
     if len(frames) < 2:
         print(red("Zu wenige Frames fuer Analyse"))
         return None
 
     if verbose:
-        print(dim(f"  {len(frames)} Frames, {w}×{h}, {fps:.1f}fps"))
+        capped = f" (von {total}, gekappt)" if max_frames and total > len(frames) else ""
+        print(dim(f"  {len(frames)} Frames{capped}, {w}×{h}, {fps:.1f}fps"))
 
+    flow_mags                          = _optical_flow_magnitudes(frames)
     ssim_mean, ssim_min, ssim_std      = temporal_ssim(frames)
-    sharp_norm, sharp_raw, sharp_std   = sharpness_score(frames)
+    sharp                              = sharpness_score(frames)
+    niqe                               = niqe_score(video_path, max_frames or 61)
     flick_mean, flick_max, flick_std   = flicker_score(frames)
-    mot_mean, mot_max                  = motion_score(frames)
-    mot_smooth, mot_cv                 = motion_smoothness(frames)
+    mot_mean, mot_max                  = motion_score(frames, flow_mags)
+    mot_smooth, mot_cv                 = motion_smoothness(frames, flow_mags)
     col_cons, col_r, col_g, col_b      = color_consistency(frames)
     bri_cons, bri_mean, bri_std        = brightness_consistency(frames)
 
@@ -262,10 +369,20 @@ def analyze_video(video_path: Path, verbose=True):
             "description": "Stabilitaet zwischen Frames (1.0 = perfekt, >0.85 = gut)"
         },
         "sharpness": {
-            "normalized": round(sharp_norm, 4),
-            "raw_laplacian": round(sharp_raw, 2),
-            "std": round(sharp_std, 2),
-            "description": "Schaerfe 0-1 (>0.3 = gut, <0.1 = unscharf)"
+            **sharp,
+            "description": (
+                "score_100 = absoluter Schaerfe-Score (heuristisch, feste Referenz); "
+                "normalized = Laplacian/3000 (>0.3 gut); "
+                "tenengrad/fft_high_ratio Zusatzmasse; konstanz 0-100 (100=konstant)"
+            )
+        },
+        "niqe": {
+            **niqe,
+            "description": (
+                "NIQE (Mittal 2013), voll-blindes Qualitaetsmass ueber gesampelte "
+                "Frames. NIEDRIGER = besser (~3 sehr gut, >6 schwach). Kein Training "
+                "auf Meinungswerten. available=false wenn isoliertes venv fehlt."
+            )
         },
         "flicker": {
             "mean": round(flick_mean, 5),
@@ -308,7 +425,17 @@ def print_report(metrics, label=None):
     print(f"  {'Metrik':<28} {'Wert':>8}   {'Bewertung'}")
     print(f"  {'-'*60}")
     print(f"  {'Temporal SSIM (Stabilitaet)':<28} {score_color(m['temporal_ssim']['mean']):>8}   min={m['temporal_ssim']['min']:.4f}")
-    print(f"  {'Schaerfe (normiert)':<28} {score_color(m['sharpness']['normalized']):>8}   raw Laplacian={m['sharpness']['raw_laplacian']:.0f}")
+    _sc100 = m['sharpness']['score_100']
+    _sccol = green if _sc100 >= 60 else (yellow if _sc100 >= 35 else red)
+    print(f"  {'Schaerfe-Score (0-100)':<28} {_sccol(f'{_sc100:.1f}'):>8}   Laplacian={m['sharpness']['raw_laplacian']:.0f}  Tenengrad={m['sharpness']['tenengrad']:.0f}  Konstanz={m['sharpness']['konstanz']:.0f}")
+    print(f"  {'Schaerfe (normiert)':<28} {score_color(m['sharpness']['normalized']):>8}   fft_high={m['sharpness']['fft_high_ratio']:.3f}")
+    _nq = m.get('niqe', {})
+    if _nq.get('available'):
+        _nqv = _nq['mean']
+        _nqcol = green if _nqv <= 4 else (yellow if _nqv <= 6 else red)
+        print(f"  {'NIQE (niedriger=besser)':<28} {_nqcol(f'{_nqv:.2f}'):>8}   min={_nq['min']:.2f} max={_nq['max']:.2f} (blind, {_nq['frames_scored']} Frames)")
+    else:
+        print(f"  {'NIQE':<28} {dim('n/a'):>8}   {dim(_nq.get('reason', 'nicht verfuegbar'))}")
     print(f"  {'Flicker (niedrig=gut)':<28} {score_color(m['flicker']['mean'], good_high=False):>8}   max={m['flicker']['max']:.4f}")
     print(f"  {'Motion px/Frame':<28} {'':>8}   {m['motion']['mean']:.3f}  (optimal: 0.5-2.0)")
     print(f"  {'Farbstabilitaet':<28} {score_color(m['color_consistency']['consistency']):>8}   std R/G/B={m['color_consistency']['std_r']:.1f}/{m['color_consistency']['std_g']:.1f}/{m['color_consistency']['std_b']:.1f}")
@@ -321,6 +448,7 @@ def print_report(metrics, label=None):
     print()
 
 
+# ── Vergleichs-Modus ─────────────────────────────────────────────────────────
 
 def find_mp4(path: Path):
     """Findet erstes MP4 in Verzeichnis oder gibt Pfad direkt zurueck."""
@@ -333,7 +461,7 @@ def find_mp4(path: Path):
     return None
 
 
-def compare_mode(paths):
+def compare_mode(paths, max_frames=None):
     results = []
     for p in paths:
         video = find_mp4(Path(p))
@@ -341,7 +469,7 @@ def compare_mode(paths):
             print(yellow(f"  Kein MP4 in: {p}"))
             continue
         print(cyan(f"\n[Analysiere] {video}"))
-        m = analyze_video(video)
+        m = analyze_video(video, max_frames=max_frames)
         if m:
             m["label"] = Path(p).name
             results.append(m)
@@ -349,6 +477,7 @@ def compare_mode(paths):
     if not results:
         return
 
+    # Sortiert nach Gesamt-Score
     results.sort(key=lambda x: x["overall_score"], reverse=True)
 
     print(f"\n{'='*70}")
@@ -370,6 +499,7 @@ def compare_mode(paths):
     print(f"\n  Bester: {bold(results[0]['label'])}  (Score: {results[0]['overall_score']:.4f})")
 
 
+# ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Video-Qualitaetsmetriken")
@@ -382,10 +512,13 @@ def main():
                         help="Test-ID fuer --update-results (z.B. B, C)")
     parser.add_argument("--compare", nargs="+", metavar="PATH",
                         help="Mehrere Videos/Verzeichnisse vergleichen")
+    parser.add_argument("--max-frames", type=int, default=None,
+                        help="Nur die ersten N Frames analysieren (schneller; "
+                             "z.B. 61 fuer automatische Bewertung nach der Generierung)")
     args = parser.parse_args()
 
     if args.compare:
-        compare_mode(args.compare)
+        compare_mode(args.compare, max_frames=args.max_frames)
         return
 
     if not args.input:
@@ -398,7 +531,7 @@ def main():
         sys.exit(1)
 
     print(cyan(f"\n  Analysiere: {video.name}"))
-    metrics = analyze_video(video)
+    metrics = analyze_video(video, max_frames=args.max_frames)
     if not metrics:
         sys.exit(1)
 
@@ -420,6 +553,7 @@ def main():
                     test["status"] = "done"
                     test["scores"]["auto_ssim"]    = metrics["temporal_ssim"]["mean"]
                     test["scores"]["auto_sharpness"] = metrics["sharpness"]["normalized"]
+                    test["scores"]["auto_sharpness_100"] = metrics["sharpness"]["score_100"]
                     test["scores"]["auto_flicker"]  = metrics["flicker"]["mean"]
                     test["scores"]["auto_motion"]   = metrics["motion"]["mean"]
                     test["scores"]["auto_color"]    = metrics["color_consistency"]["consistency"]

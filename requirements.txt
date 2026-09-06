@@ -1,22 +1,31 @@
-# Requirements fuer Bachelor_VisiualStudio (Audio- und Video-Pipeline, gemeinsames .venv)
+# Requirements der Lo-Fi-Pipeline (Audio + Video, gemeinsames .venv)
 #
-# Erzeugt per `pip freeze` aus dem tatsaechlich laufenden Trainings-/Generierungs-Environment
-# (Stand 2026-08-20). Enthaelt beide Pipelines: Audio (MusicGen/LoRA, audiocraft/transformers/
-# xformers/librosa/demucs) und Video (LTX-Video-Trainer, diffusers/decord/gradio/opencv).
+# Erzeugt per `pip freeze` aus dem tatsaechlich laufenden Trainings- und Generierungs-
+# Environment. Enthaelt beide Pipelines: Audio (MusicGen/LoRA - audiocraft, transformers,
+# xformers, librosa, demucs) und Video (LTX-Video-Trainer - diffusers, decord, opencv).
 #
-# Voraussetzungen, die diese Datei NICHT abdeckt (siehe dokumentation/aktuell/VORAUSSETZUNGEN.md):
-#   - Python 3.11 (getestet: 3.11.0rc1)
-#   - NVIDIA-GPU + Treiber (getestet: RTX A6000, Treiber 580.173.02) - CUDA-Runtime kommt
-#     ueber die nvidia-cu*-Pakete unten mit, kein separates CUDA-Toolkit noetig
-#   - ffmpeg (System-Paket, getestet: 4.4.2, Ubuntu 22.04)
-#   - Node.js 22.x + npm fuer das separate Frontend-Repo (eigene package.json dort)
+# WICHTIG - zweite Umgebung fuer die NIQE-Bewertung:
+#   Die quantitative Videobewertung (NIQE) laeuft NICHT in diesem venv, sondern in einer
+#   getrennten Umgebung, siehe requirements-niqe.txt. Grund: pyiqa erzwingt transformers>=5,
+#   waehrend diese Pipeline transformers==4.52.2 benoetigt. Wird pyiqa in dieses venv
+#   installiert, starten diffusers und ltxv_trainer nicht mehr.
+#
+# Nicht durch diese Datei abgedeckt (siehe NACHBAUANLEITUNG.md):
+#   - Python 3.11 (getestet: 3.11.0rc1) - 3.12 bricht bei audiocraft
+#   - NVIDIA-GPU + Treiber (getestet: RTX A6000, Treiber 580.173.02); die CUDA-Runtime kommt
+#     ueber die nvidia-cu*-Pakete unten mit, ein separates CUDA-Toolkit ist nicht noetig
+#   - ffmpeg als System-Paket (getestet: 4.4.2, Ubuntu 22.04)
+#   - Node.js 22.x + npm fuer das Frontend unter frontend/ (eigene package.json dort)
+#   - Modellgewichte: facebook/musicgen-melody-large und LTXV_13B_097_DEV werden beim
+#     ersten Lauf geladen; der LoRA-Adapter liegt als GitHub-Release (lora-adapter-v1)
 #
 # Installation:
 #   python3.11 -m venv .venv
 #   .venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements.txt
 #
 # Das --extra-index-url ist noetig, weil torch/torchaudio als +cu124-Build referenziert sind
-# (auf PyPI selbst liegen nur die CPU-Varianten).
+# (auf PyPI liegen nur die CPU-Varianten).
+
 
 absl-py==2.5.0
 accelerate==1.13.0
@@ -155,7 +164,7 @@ nvidia-nvshmem-cu13==3.4.5
 nvidia-nvtx==13.0.85
 nvidia-nvtx-cu12==12.4.127
 omegaconf==2.3.0
-opencv-python==4.13.0.92
+opencv-python==4.13.0.90
 openunmix==1.3.0
 optimum-quanto==0.2.7
 orjson==3.11.8
@@ -193,7 +202,7 @@ rich==15.0.0
 rsa==4.9.1
 ruff==0.15.12
 safehttpx==0.1.7
-safetensors==0.7.0
+safetensors==0.8.0
 scenedetect==0.7
 scikit-image==0.26.0
 scikit-learn==1.8.0

@@ -5,7 +5,7 @@ einer neuen Maschine vollständig nachzubauen: Audio-Pipeline (MusicGen + LoRA),
 (LTX-Video + LoRA) und die gemeinsame Studio-Website.
 
 Alle Versions- und Hardwareangaben sind aus der tatsächlich genutzten Entwicklungsumgebung
-übernommen (Stand 2026-08-23, siehe [`audio-pipeline/requirements.txt`](audio-pipeline/requirements.txt)),
+übernommen (Stand 2026-08-23, siehe [`requirements.txt`](requirements.txt)),
 keine Schätzungen.
 
 **Aktueller Referenzstand:** Das aktive Audio-Modell ist LoRA-Adapter Step 625 (trainiert auf
@@ -73,7 +73,7 @@ OOM-Vorfälle bei knapperem VRAM sind im Projektverlauf dokumentiert (siehe
 ## 3. Python-Umgebung (gemeinsam für Audio + Video)
 
 ```bash
-cd audio-pipeline
+cd Bachelor-AI-Pipeline
 python3.11 -m venv .venv
 .venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements.txt
 ```
@@ -85,10 +85,22 @@ laufenden Entwicklungsumgebung — u. a. `audiocraft`, `transformers`, `xformers
 `--extra-index-url` ist nötig, weil `torch`/`torchaudio` als `+cu124`-Build referenziert sind, der nur
 im PyTorch-eigenen Wheel-Index liegt, nicht auf PyPI selbst.
 
-Die `.venv` liegt bewusst unter `audio-pipeline/.venv` — alle Befehle für **beide** Pipelines nutzen
-diesen einen Interpreter (Beispiele unten entsprechend mit relativem Pfad `../audio-pipeline/.venv/bin/python`,
-wenn sie aus `video-pipeline/` heraus laufen, oder man aktiviert die Umgebung einmal mit
-`source audio-pipeline/.venv/bin/activate`).
+Die `.venv` liegt in der Repo-Wurzel — alle Befehle für **beide** Pipelines nutzen diesen einen
+Interpreter, sämtliche Beispiele unten sind entsprechend von der Wurzel aus formuliert.
+
+**Zweite Umgebung für die NIQE-Bewertung:**
+
+```bash
+python3.11 -m venv .venv-niqe
+.venv-niqe/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements-niqe.txt
+```
+
+Diese Pakete dürfen **nicht** in `.venv` installiert werden: `pyiqa` erzwingt `transformers>=5`,
+während die Pipeline `transformers==4.52.2` benötigt — andernfalls starten `diffusers` und
+`ltxv_trainer` nicht mehr. `evaluate_video.py` ruft die NIQE-Berechnung deshalb über
+`video-pipeline/lofi_pipeline/scripts/_niqe_worker.py` als Subprozess im zweiten venv auf.
+Ohne diesen Schritt liefert die Videobewertung SSIM, Schärfe, Flackern, Bewegung und Farbe,
+aber keinen NIQE-Wert — und damit nicht die in der Arbeit dokumentierten Vergleichswerte.
 
 ## 4. Basismodelle herunterladen
 
@@ -98,7 +110,7 @@ sie müssen vorher explizit lokal bereitgestellt werden.
 **4a. MusicGen Melody Large (Pflicht für die Audio-Pipeline, ca. 15 GB):**
 
 ```bash
-audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/setup_musicgen_melody_large.py --download
+.venv/bin/python audio-pipeline/code/src/Training/setup_musicgen_melody_large.py --download
 ```
 
 Lädt `facebook/musicgen-melody-large` von Hugging Face nach
@@ -108,7 +120,7 @@ Skript nur Status und nötigen Befehl an, lädt aber nichts.
 **4b. CLAP (semantische Genre-Prüfung, ca. 590 MB, optional):**
 
 ```bash
-audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download clap
+.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download clap
 ```
 
 Lädt `laion/clap-htsat-unfused` nach `audio-pipeline/daten/modelle/audio_analyse/clap_htsat_unfused/`.
@@ -118,7 +130,7 @@ Aussagekraft eingeschränkt (nur ~40 % Trefferquote im Test, siehe
 **4c. Demucs (optional, nur für manuelle Stem-Analyse):**
 
 ```bash
-audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download demucs
+.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download demucs
 ```
 
 **4d. LTX-Video 13B (Video-Pipeline):** wird von `ltxv_trainer` beim ersten Aufruf von
@@ -149,8 +161,7 @@ mkdir -p audio-pipeline/training/musicgen/lora_training/checkpoints/step_000625/
 curl -L -o audio-pipeline/training/musicgen/lora_training/checkpoints/step_000625/lora_adapter.pt \
   https://github.com/AdilBerke/Bachelor-AI-Pipeline/releases/download/lora-adapter-v1/lora_adapter.pt
 
-cd audio-pipeline
-.venv/bin/python code/start.py --lora-freigeben \
+.venv/bin/python audio-pipeline/code/start.py --lora-freigeben \
   --checkpoint training/musicgen/lora_training/checkpoints/step_000625/lora_adapter.pt
 ```
 
@@ -175,8 +186,7 @@ sichere Supabase-Werte und kann unverändert übernommen werden.
 ## 6. Backend starten
 
 ```bash
-cd audio-pipeline
-.venv/bin/python code/src/Pipeline/web_api.py
+.venv/bin/python audio-pipeline/code/src/Pipeline/web_api.py
 ```
 
 Reiner `http.server` ohne Framework, Port 8000. Website danach unter `http://localhost:8080`
@@ -185,7 +195,7 @@ erreichbar (Frontend spricht die feste Backend-Adresse aus `frontend/src/lib/set
 Die Video-Pipeline hat eine eigene, unabhängige lokale Oberfläche für Bewertung/Feedback:
 
 ```bash
-audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/feedback_ui.py
+.venv/bin/python video-pipeline/lofi_pipeline/scripts/feedback_ui.py
 ```
 
 Standardmäßig auf Port 7860.
@@ -195,12 +205,11 @@ Standardmäßig auf Port 7860.
 ### Audio
 
 ```bash
-cd audio-pipeline
-.venv/bin/python code/start.py --top10          # Top10-Quellensuche pro Genre
+.venv/bin/python audio-pipeline/code/start.py --top10          # Top10-Quellensuche pro Genre
 ```
 
 Danach in der Website unter "Quellen" die gefundenen Videos importieren, oder gesammelt per
-Backend-Aktion `import_pending`. Das baut über `code/src/Crawler/quellen_suche.py` (YouTube-Suche +
+Backend-Aktion `import_pending`. Das baut über `audio-pipeline/code/src/Crawler/quellen_suche.py` (YouTube-Suche +
 Lizenzfilter „no copyright") eine eigene, gleichwertige Quellenbasis auf, ohne dass die
 Original-Dateien benötigt werden. Aus den daraus erzeugten Clips lässt sich der Datensatz
 anschließend genauso aufbauen wie im dokumentierten Verlauf in
@@ -222,7 +231,7 @@ Szenario danach wie in Schritt 9 beschrieben anlegen.
 Kurzer Smoke-Test ohne vollständigen Trainingslauf:
 
 ```bash
-audio-pipeline/.venv/bin/python audio-pipeline/code/src/Training/lora.py --nur-pruefen
+.venv/bin/python audio-pipeline/code/src/Training/lora.py --nur-pruefen
 ```
 
 Prüft Datensatz, Modellpfade und schreibt den geplanten Trainingsbefehl, ohne zu trainieren — guter
@@ -232,11 +241,11 @@ Weitere Befehle (vollständige Liste inkl. Longform-Generierung und Referenzverg
 [`audio-pipeline/README.md`](audio-pipeline/README.md#lokale-befehle)):
 
 ```bash
-audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --status
-audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --clips-5000
-audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --lora-training
-audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --testaudios
-audio-pipeline/.venv/bin/python audio-pipeline/code/start.py --referenzvergleich
+.venv/bin/python audio-pipeline/code/start.py --status
+.venv/bin/python audio-pipeline/code/start.py --clips-5000
+.venv/bin/python audio-pipeline/code/start.py --lora-training
+.venv/bin/python audio-pipeline/code/start.py --testaudios
+.venv/bin/python audio-pipeline/code/start.py --referenzvergleich
 ```
 
 ## 9. Video-Pipeline: typische Abläufe
@@ -251,10 +260,10 @@ export LTXV_VRAM_LIMIT_FRACTION=0.80
 
 ```bash
 # neues Szenario: erst scenario.yaml + Referenzclips anlegen, dann
-audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/preprocess_scenario.py --scenario <name>
-audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/train_lora.py --scenario <name> --round 1
-audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/generate_samples.py --scenario <name> --round 1 --gif
-audio-pipeline/.venv/bin/python video-pipeline/lofi_pipeline/scripts/feedback.py --latest
+.venv/bin/python video-pipeline/lofi_pipeline/scripts/preprocess_scenario.py --scenario <name>
+.venv/bin/python video-pipeline/lofi_pipeline/scripts/train_lora.py --scenario <name> --round 1
+.venv/bin/python video-pipeline/lofi_pipeline/scripts/generate_samples.py --scenario <name> --round 1 --gif
+.venv/bin/python video-pipeline/lofi_pipeline/scripts/feedback.py --latest
 ```
 
 ## 10. Bekannte Einschränkungen der Reproduzierbarkeit

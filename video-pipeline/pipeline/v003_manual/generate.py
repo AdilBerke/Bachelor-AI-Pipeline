@@ -67,6 +67,7 @@ def main():
     print("Moving components to CUDA...")
     components.transformer.to("cuda")
     components.vae.to("cuda")
+    # text_encoder stays where bitsandbytes put it (already on cuda)
 
     pipe = LTXConditionPipeline(
         scheduler=components.scheduler,
@@ -76,6 +77,7 @@ def main():
         transformer=components.transformer,
     )
 
+    # Reduce peak VRAM during VAE decode via tiling
     if hasattr(pipe, "enable_vae_tiling"):
         pipe.enable_vae_tiling()
 
@@ -86,8 +88,10 @@ def main():
     print(f"Generating ({args.steps} steps, {args.width}x{args.height}x{args.frames}, gpu={args.gpu_fraction:.0%})...")
     generator = torch.Generator(device="cuda").manual_seed(args.seed)
 
+    # Free fragmented cached memory before generation
     torch.cuda.empty_cache()
 
+    # GPU-Throttle: Pausen zwischen Steps um Auslastung zu begrenzen
     _step_times: list[float] = []
     _step_start: list[float] = [time.monotonic()]
 
@@ -116,8 +120,8 @@ def main():
         num_inference_steps=args.steps,
         guidance_scale=args.guidance_scale,
         generator=generator,
-        frame_rate=25,
-        decode_timestep=0.10,
+        frame_rate=25,         # explicit temporal RoPE scale (8/25 = 0.32)
+        decode_timestep=0.10,  # 0.10 allows more temporal variation (was 0.05, too aggressively smoothed motion)
         decode_noise_scale=0.025,
         output_reference_comparison=False,
         **throttle_kwargs,
@@ -127,6 +131,7 @@ def main():
     tmp_path = args.output.replace(".mp4", "_raw.mp4")
     export_to_video(result.frames[0], tmp_path, fps=8)
 
+    # Re-encode with correct color space metadata (fixes green tint in browser/players)
     import subprocess
     subprocess.run([
         "ffmpeg", "-y", "-i", tmp_path,
@@ -136,6 +141,38 @@ def main():
     ], check=True, capture_output=True)
     os.remove(tmp_path)
     print(f"Saved: {args.output}")
+
+    # ── Automatische Schaerfe-/Qualitaetsbewertung (best effort) ──────────────
+    # Schreibt <output>.metrics.json neben das Video (Schaerfe-Score + SSIM,
+    # Flicker, Motion, Farbe, Gesamt). Darf die Generierung NIE abbrechen.
+    _eval_script = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), "..", "realistic_rabbit", "evaluate_video.py"))
+    try:
+        if os.path.exists(_eval_script):
+            subprocess.run(
+                [sys.executable, _eval_script, args.output,
+                 "--save-report", "--max-frames", "61"],
+                check=False, capture_output=True, text=True, timeout=300)
+            _mj = args.output.replace(".mp4", ".metrics.json")
+            if os.path.exists(_mj):
+                import json as _json
+                with open(_mj) as _f:
+                    _m = _json.load(_f)
+                _s = _m.get("sharpness", {})
+                _n = _m.get("niqe", {})
+                _nstr = (f"NIQE {_n.get('mean')}" if _n.get("available")
+                         else "NIQE n/a")
+                print(
+                    f"Schaerfe-Score: {_s.get('score_100', '?')}/100  "
+                    f"(Laplacian {_s.get('raw_laplacian', '?')}, "
+                    f"Tenengrad {_s.get('tenengrad', '?')}, "
+                    f"Konstanz {_s.get('konstanz', '?')})  |  "
+                    f"{_nstr} (blind)  |  "
+                    f"Gesamt-Score {_m.get('overall_score', '?')}")
+        else:
+            print(f"(Bewertung uebersprungen: evaluate_video.py nicht gefunden)")
+    except Exception as _e:
+        print(f"(Bewertung uebersprungen: {_e})")
 
 if __name__ == "__main__":
     main()

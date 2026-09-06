@@ -26,6 +26,10 @@ _running = {}
 _running_lock = threading.Lock()
 
 
+# ──────────────────────────────────────────────
+# Feedback → Prompt-Korrekturen Mapping
+# Jeder Eintrag: (prompt_add, negative_add, caption_hint, needs_training)
+# ──────────────────────────────────────────────
 CORRECTIONS = {
     "ohren_fehlen": {
         "label": "Ohren fehlen / nicht sichtbar",
@@ -128,6 +132,9 @@ CORRECTIONS = {
 }
 
 
+# ──────────────────────────────────────────────
+# Hilfsfunktionen
+# ──────────────────────────────────────────────
 
 def load_yaml(path):
     with open(path) as f:
@@ -177,6 +184,7 @@ def _find_checkpoint(round_dir: Path, filename: str):
     if m:
         ckpt = round_dir / "checkpoints" / f"lora_weights_step_{m.group(1)}.safetensors"
         return str(ckpt) if ckpt.exists() else None
+    # Für manuell generierte (manual_s777_g9_...) → neuester Checkpoint
     ckpt_dir = round_dir / "checkpoints"
     if ckpt_dir.exists():
         ckpts = sorted(ckpt_dir.glob("lora_weights_step_*.safetensors"))
@@ -236,6 +244,7 @@ def apply_corrections_to_scenario(scenario_id: str, correction_ids: list):
     cfg["prompt"] = prompt
     cfg["negative_prompt"] = negative
 
+    # Backup vor dem Überschreiben
     backup = scenario_path.with_suffix(".yaml.bak")
     backup.write_text(scenario_path.read_text())
 
@@ -265,6 +274,9 @@ def run_background(cmd, env, job_id, job_meta):
             _running[job_id]["returncode"] = proc.returncode
 
 
+# ──────────────────────────────────────────────
+# API
+# ──────────────────────────────────────────────
 
 @app.route("/api/scenarios")
 def api_scenarios():
@@ -381,6 +393,9 @@ def serve_media(scenario_id, round_name, filename):
         SCENARIOS_DIR / scenario_id / "rounds" / round_name / "samples", filename)
 
 
+# ──────────────────────────────────────────────
+# HTML Frontend
+# ──────────────────────────────────────────────
 
 HTML = r"""<!DOCTYPE html>
 <html lang="de">

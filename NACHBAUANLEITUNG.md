@@ -21,20 +21,25 @@ beschafft, ohne die konkreten Dateien zu benötigen.
 
 ## Schritt 1 — Code
 
-Zwei getrennte Git-Repositories:
+Dieses Repository enthält bereits alle drei Bestandteile — Audio-Pipeline, Video-Pipeline
+und Frontend. Ein einzelner Klon genügt:
 
 ```bash
-git clone https://github.com/AdilBerke/Bachelor_VisiualStudio.git
-git clone https://github.com/AdilBerke/lo-fi-harmony-forge.git
+git clone https://github.com/AdilBerke/Bachelor-AI-Pipeline.git
+cd Bachelor-AI-Pipeline
 ```
 
-Branch fürs Hauptrepo: `code-backup` (aufgeräumter, vollständiger Code-Stand — nicht
-`project-clean-no-mp3`, dort läuft noch eine unfertige, unabhängige Aufräumaktion).
-Frontend-Repo: Branch `NewWeb`.
+Aufbau:
 
-Alternativ, ohne `git clone`: `dokumentation/abgabe/codebase_audio_pipeline.zip` im
-`code-backup`-Branch direkt von GitHub herunterladen — enthält denselben Code+Doku-Stand
-als einzelne Datei (ohne Trainingsdaten/Modelle).
+| Verzeichnis | Inhalt |
+|---|---|
+| `audio-pipeline/` | MusicGen + LoRA, Crawler, Bewertung, Backend (`code/src/…`) |
+| `video-pipeline/` | LTX-Video, szenariobasiertes Training, NIQE-Bewertung, GIF-Erzeugung |
+| `frontend/` | Studio-Weboberfläche (React/TanStack), inkl. `package.json` |
+| `requirements.txt` | Python-Pakete beider Pipelines |
+| `requirements-niqe.txt` | Pakete der getrennten NIQE-Umgebung (siehe Schritt 3b) |
+
+Alle Pfadangaben in dieser Anleitung beziehen sich auf die Wurzel dieses Repositories.
 
 ## Schritt 2 — System-Voraussetzungen
 
@@ -51,13 +56,15 @@ Ein separates CUDA-Toolkit ist **nicht** nötig — die CUDA-Runtime kommt über
 installiert sein.
 
 Mindestens ~16 GB freier VRAM werden für MusicGen-Melody-Large-LoRA-Training empfohlen
-(siehe `vram_profile_for_hardware()` in `code/src/Training/musicgen_steuerung.py` — unter
+(siehe `vram_profile_for_hardware()` in `audio-pipeline/code/src/Training/musicgen_steuerung.py` — unter
 24 GB gilt explizit als Notfallprofil, 24–39 GB als Fallback, ab 40 GB als empfohlenes Profil).
 
 ## Schritt 3 — Python-Umgebung
 
+**3a. Haupt-Umgebung (Audio- und Videopipeline):**
+
 ```bash
-cd Bachelor_VisiualStudio
+cd Bachelor-AI-Pipeline
 python3.11 -m venv .venv
 .venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements.txt
 ```
@@ -69,6 +76,39 @@ gepinnt), `decord`, `opencv-python`, `gradio` (Video). Das `--extra-index-url` i
 weil `torch`/`torchaudio` als `+cu124`-Build referenziert sind, der nur im PyTorch-eigenen
 Wheel-Index liegt, nicht auf PyPI selbst.
 
+**3b. Zweite Umgebung für die NIQE-Bewertung (Pflicht für die Videoevaluation):**
+
+```bash
+python3.11 -m venv .venv-niqe
+.venv-niqe/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements-niqe.txt
+```
+
+> **Diese Pakete dürfen nicht in `.venv` installiert werden.** `pyiqa` erzwingt
+> `transformers>=5`, während die Pipeline `transformers==4.52.2` benötigt. Landet `pyiqa`
+> im Haupt-venv, starten `diffusers` und `ltxv_trainer` nicht mehr — die Videogenerierung
+> bricht dann bereits beim Import ab.
+
+NIQE (Naturalness Image Quality Evaluator, No-Reference-Metrik nach Mittal et al., 2013) ist
+die quantitative Kennzahl für die Einzelbildqualität der erzeugten Rohvideos; niedrigere
+Werte bedeuten eine geringere Abweichung vom Referenzmodell natürlicher Bildstatistiken.
+Ausgewertet werden zwölf gleichmäßig über die Sequenz verteilte Frames je Video in
+Originalauflösung, anschließend gemittelt.
+
+Die Trennung ist im Code bereits umgesetzt: `evaluate_video.py` ruft die Bewertung über
+`video-pipeline/lofi_pipeline/scripts/_niqe_worker.py` als Subprozess im zweiten venv auf.
+Ohne Schritt 3b liefert die Videobewertung technische Kennzahlen (SSIM, Schärfe, Flackern,
+Bewegung, Farbe), aber **keinen NIQE-Wert**.
+
+Weitere NIQE-Werkzeuge:
+
+```bash
+# alle vorhandenen Videos nachträglich bewerten (MP4 + GIF)
+.venv/bin/python video-pipeline/lofi_pipeline/scripts/backfill_metrics.py
+
+# reiner Schärfe-Batchvergleich als Rangliste
+.venv/bin/python video-pipeline/lofi_pipeline/scripts/schaerfe_bewertung.py
+```
+
 ## Schritt 4 — Basismodelle herunterladen
 
 Die Pipeline lädt Modelle **nicht automatisch beim ersten Gebrauch** (Ausnahme: LTX-Video,
@@ -77,7 +117,7 @@ siehe unten) — sie müssen vorher explizit lokal bereitgestellt werden.
 **4a. MusicGen Melody Large (Pflicht für die Audio-Pipeline, ca. 15 GB):**
 
 ```bash
-.venv/bin/python code/src/Training/setup_musicgen_melody_large.py --download
+.venv/bin/python audio-pipeline/code/src/Training/setup_musicgen_melody_large.py --download
 ```
 
 Lädt `facebook/musicgen-melody-large` von Hugging Face nach
@@ -87,7 +127,7 @@ Skript nur den Status und den nötigen Befehl an, lädt aber nichts.
 **4b. CLAP (für die semantische Genre-Prüfung, ca. 590 MB, optional aber empfohlen):**
 
 ```bash
-.venv/bin/python code/src/Training/audio_modelle_einrichten.py --download clap
+.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download clap
 ```
 
 Lädt `laion/clap-htsat-unfused` nach `daten/modelle/audio_analyse/clap_htsat_unfused/`.
@@ -98,20 +138,21 @@ Abschnitt 10.1 — nur 40 % Trefferquote im Test, deshalb produktiv nicht aktiv.
 **4c. Demucs (optional, nur für manuelle Stem-Analyse):**
 
 ```bash
-.venv/bin/python code/src/Training/audio_modelle_einrichten.py --download demucs
+.venv/bin/python audio-pipeline/code/src/Training/audio_modelle_einrichten.py --download demucs
 ```
 
 **4d. LTX-Video 13B (Video-Pipeline):** wird von der `ltxv_trainer`-Bibliothek beim ersten
-Aufruf von `Bachelorarbeit/pipeline/v003_manual/generate.py` automatisch von Hugging Face
+Aufruf von `video-pipeline/pipeline/v003_manual/generate.py` automatisch von Hugging Face
 geladen (`LtxvModelVersion.LTXV_13B_097_DEV`) und im Standard-HF-Cache abgelegt — kein
 gesonderter Setup-Schritt nötig, dafür aber ein einmaliger, langsamerer erster Lauf.
 
-**4e. RealESRGAN-Gewichte (Video-Nachbearbeitung/Upscaling):** In diesem Arbeitsstand liegt
-unter `Bachelorarbeit/lofi_pipeline/models/RealESRGAN_x4plus_anime_6B.pth` nur eine **leere
-0-Byte-Platzhalterdatei** — das ist kein funktionierendes Modell. Für einen echten Nachbau
-müssen die echten Gewichte manuell von der
-[offiziellen Real-ESRGAN-Release-Seite](https://github.com/xinntao/Real-ESRGAN/releases) in
-denselben Ordner gelegt werden.
+**4e. RealESRGAN-Gewichte (Video-Nachbearbeitung/Upscaling):** Die Modellgewichte sind aus
+Größengründen **nicht** Teil dieses Repositories. Für das KI-Upscaling der erzeugten Videos
+muss `RealESRGAN_x4plus_anime_6B.pth` von der
+[offiziellen Real-ESRGAN-Release-Seite](https://github.com/xinntao/Real-ESRGAN/releases)
+heruntergeladen und unter `video-pipeline/lofi_pipeline/models/` abgelegt werden (Ordner ggf.
+anlegen). Ohne diese Datei laufen Generierung und Bewertung normal, die Nachbearbeitung
+liefert dann aber kein hochskaliertes 1920×1088-Video.
 
 **4f. Trainiertes Lo-Fi-LoRA (das eigentliche Ergebnis, nicht nur die Pipeline):** Die Schritte
 1–4e bauen nur die **Pipeline** nach — ein frisch heruntergeladenes MusicGen-Basismodell ohne
@@ -151,24 +192,24 @@ selbst dann nicht bit-identisch, da MusicGen-Training/-Generierung stochastisch 
 
 ```bash
 export PATH="$HOME/.cache/lo-fi-dreamer-node/node-v22.22.3-linux-x64/bin:$PATH"   # falls Node nicht separat installiert ist
-cd lo-fi-harmony-forge
+cd frontend
 npm install
 npm run dev -- --port 8080
 ```
 
-`package.json`/`package-lock.json` im Frontend-Repo übernehmen für Node bereits die Rolle
+`package.json`/`package-lock.json` unter `frontend/` übernehmen für Node bereits die Rolle
 von `requirements.txt` — kein separater Schritt nötig.
 
 ## Schritt 6 — Backend starten
 
 ```bash
-cd Bachelor_VisiualStudio
-.venv/bin/python code/src/Pipeline/web_api.py
+cd Bachelor-AI-Pipeline
+.venv/bin/python audio-pipeline/code/src/Pipeline/web_api.py
 ```
 
 Reiner `http.server` ohne Framework, Port 8000. Website danach unter `http://localhost:8080`
-erreichbar (Frontend spricht die feste Backend-Adresse aus `src/lib/settings.ts` im
-Frontend-Repo an).
+erreichbar (das Frontend spricht die feste Backend-Adresse aus
+`frontend/src/lib/settings.ts` an).
 
 ## Schritt 7 — Eigene Datengrundlage statt der Original-MP3s
 
@@ -181,7 +222,7 @@ nachzubauen:
 # oder gesammelt per Backend-Aktion "import_pending"
 ```
 
-Das baut eine eigene, gleichwertige Quellenbasis über `code/src/Crawler/quellen_suche.py`
+Das baut eine eigene, gleichwertige Quellenbasis über `audio-pipeline/code/src/Crawler/quellen_suche.py`
 auf (YouTube-Suche + Lizenzfilter „no copyright"), ohne dass die ursprünglichen Dateien
 benötigt werden. Aus den daraus erzeugten Clips lässt sich der Datensatz anschließend über
 die Steuerung-Seite (Dataset bauen → LoRA-Training) genauso aufbauen wie im dokumentierten
@@ -192,7 +233,7 @@ Verlauf in `MUSIKMODELL_VERSUCHSDOKUMENTATION.md`.
 Kurzer Smoke-Test ohne vollständigen Trainingslauf:
 
 ```bash
-.venv/bin/python code/src/Training/lora.py --nur-pruefen
+.venv/bin/python audio-pipeline/code/src/Training/lora.py --nur-pruefen
 ```
 
 Prüft Datensatz, Modellpfade und schreibt den geplanten Trainingsbefehl, ohne tatsächlich
