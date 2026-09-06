@@ -254,7 +254,7 @@ Prüft Datensatz, Modellpfade und schreibt den geplanten Trainingsbefehl, ohne z
 erster Nachweis, dass Umgebung, Modelle und Datensatz-Pfade korrekt zusammenspielen.
 
 Weitere Befehle (vollständige Liste inkl. Longform-Generierung und Referenzvergleich in
-[`audio-pipeline/README.md`](audio-pipeline/README.md#lokale-befehle)):
+[`audio-pipeline/README.md`](audio-pipeline/README.md)):
 
 ```bash
 .venv/bin/python audio-pipeline/code/start.py --status
