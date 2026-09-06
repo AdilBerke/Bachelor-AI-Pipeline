@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import fontCss from "../styles-fonts.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { getSettings, saveSettings } from "../lib/settings";
 
@@ -95,14 +96,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
+      // Schriften werden lokal aus public/fonts/ geladen (siehe src/styles-fonts.css),
+      // damit die Anwendung ohne Verbindung zu externen Diensten auskommt.
+      { rel: "stylesheet", href: fontCss },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap",
-      },
     ],
   }),
   shellComponent: RootShell,
