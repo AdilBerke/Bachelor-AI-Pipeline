@@ -1,8 +1,7 @@
 # Struktur: Video-/GIF-Pipeline
 
 Diese Dokumentation deckt den **Video-/GIF-Teil** des Projekts ab (LTX-Video-LoRA-Training,
-Szenario-Generierung, GIF-Export, Nachbearbeitung). Sie ergänzt `dokumentation/aktuell/`,
-das ausschließlich den MusicGen-Audio-Teil beschreibt.
+Szenario-Generierung, GIF-Export, Nachbearbeitung). Der MusicGen-Audio-Teil ist in `../../audio-pipeline/README.md` beschrieben.
 
 Stand dieser Dokumentation: 04.08.2026, erstellt durch direkte Prüfung von Code,
 Konfigurationsdateien, Logs und JSON-Metadaten im Repository.
@@ -103,5 +102,5 @@ mit dem Studierenden verifiziert werden.
 Der letzte Commit, der `Bachelorarbeit/` verändert hat, ist vom **08.06.2026**. Alle
 in `02_verlauf.md` dokumentierten Trainingsrunden (13.06.–28.07.2026) liegen
 **unversioniert** nur lokal vor. Die aktuell aktiv gepflegte Projektdokumentation
-(`dokumentation/aktuell/`) und praktisch alle Commits der letzten Wochen behandeln
+und praktisch alle Commits der letzten Wochen behandeln
 ausschließlich den Audio-Teil und bezeichnen `Bachelorarbeit/` als "Altbestand".

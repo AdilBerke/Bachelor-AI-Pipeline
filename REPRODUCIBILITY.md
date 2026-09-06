@@ -139,8 +139,8 @@ Optional lässt sich der Download vorziehen:
 ```
 
 Lädt `laion/clap-htsat-unfused` nach `audio-pipeline/daten/modelle/audio_analyse/clap_htsat_unfused/`.
-Aussagekraft eingeschränkt (nur ~40 % Trefferquote im Test, siehe
-`audio-pipeline/MUSIKMODELL_VERSUCHSDOKUMENTATION.md`, Abschnitt 10.1) — deshalb produktiv nicht aktiv.
+Aussagekraft eingeschränkt: Ein gesonderter Test zur Genrezuordnung erreichte nur rund 40 %
+Trefferquote — der Abgleich wird deshalb produktiv nicht als Ausschlusskriterium verwendet.
 
 **4c. Demucs (optional, nur für manuelle Stem-Analyse):**
 
@@ -229,7 +229,7 @@ Backend-Aktion `import_pending`. Das baut über `audio-pipeline/code/src/Crawler
 Lizenzfilter „no copyright") eine eigene, gleichwertige Quellenbasis auf, ohne dass die
 Original-Dateien benötigt werden. Aus den daraus erzeugten Clips lässt sich der Datensatz
 anschließend genauso aufbauen wie im dokumentierten Verlauf in
-`audio-pipeline/MUSIKMODELL_VERSUCHSDOKUMENTATION.md`.
+Kapitel 6 der Bachelorarbeit.
 
 Bekannte Einschränkung: Massenimporte ohne Cookies schlagen häufig mit „Sign in to confirm you're not
 a bot" fehl (YouTube-Bot-Sperre). Ein Workaround (`--cookies-from-browser`) ist zum Stand dieses
@@ -288,7 +288,7 @@ export LTXV_VRAM_LIMIT_FRACTION=0.80
   (inkompatibler Build gegen die installierte PyTorch/CUDA-Version). Bekannt und harmlos — der
   einzig kompatible `xformers`-Build für die von `audiocraft` vorgeschriebene Versionsobergrenze
   (`<0.0.23`) ist bereits installiert; ein Upgrade ist nicht möglich, ohne `audiocraft` selbst zu
-  brechen. Details: `audio-pipeline/MUSIKMODELL_VERSUCHSDOKUMENTATION.md`, Abschnitt 10.4.
+  brechen. Details in Kapitel 6.3 der Bachelorarbeit.
 - **Keine bit-identischen Ausgaben:** MusicGen- und LTX-Video-Generierung sind stochastisch
   (Sampling); dieselbe Konfiguration erzeugt vergleichbare, aber keine identischen Audios/Videos.
   Reproduzierbar sind Pipeline, Konfiguration und Bewertungsmethodik — nicht einzelne Sample-Bytes.

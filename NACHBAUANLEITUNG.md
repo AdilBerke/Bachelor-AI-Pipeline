@@ -146,9 +146,9 @@ Wer den Download vorziehen möchte, kann das Modell vorab in den Cache holen:
 ```
 
 Lädt `laion/clap-htsat-unfused` nach `daten/modelle/audio_analyse/clap_htsat_unfused/`.
-(Hinweis zur Aussagekraft dieser Prüfung: siehe
-[`MUSIKMODELL_VERSUCHSDOKUMENTATION.md`](MUSIKMODELL_VERSUCHSDOKUMENTATION.md),
-Abschnitt 10.1 — nur 40 % Trefferquote im Test, deshalb produktiv nicht aktiv.)
+(Hinweis zur Aussagekraft: Ein gesonderter Test zur Genrezuordnung erreichte nur rund
+40 % Trefferquote. Der Abgleich wird deshalb im regulären Generierungsweg nicht als
+Ausschlusskriterium verwendet.)
 
 **4c. Demucs (optional, nur für manuelle Stem-Analyse):**
 
@@ -241,7 +241,7 @@ Das baut eine eigene, gleichwertige Quellenbasis über `audio-pipeline/code/src/
 auf (YouTube-Suche + Lizenzfilter „no copyright"), ohne dass die ursprünglichen Dateien
 benötigt werden. Aus den daraus erzeugten Clips lässt sich der Datensatz anschließend über
 die Steuerung-Seite (Dataset bauen → LoRA-Training) genauso aufbauen wie im dokumentierten
-Verlauf in `MUSIKMODELL_VERSUCHSDOKUMENTATION.md`.
+Verlauf in Kapitel 6 der Bachelorarbeit.
 
 ## Schritt 8 — Funktionsprüfung
 
@@ -261,6 +261,4 @@ Beim Trainingsstart erscheint durchgehend eine `xFormers`-Warnung (inkompatibler
 gegen die installierte PyTorch/CUDA-Version). Bekannt und harmlos — der einzig kompatible
 `xformers`-Build für die von `audiocraft` vorgeschriebene Versionsobergrenze (`<0.0.23`) ist
 bereits installiert; ein Upgrade ist nicht möglich, ohne `audiocraft` selbst zu brechen.
-Details siehe
-[`MUSIKMODELL_VERSUCHSDOKUMENTATION.md`](MUSIKMODELL_VERSUCHSDOKUMENTATION.md),
-Abschnitt 10.4.
+Details in Kapitel 6 der Bachelorarbeit.

@@ -1,7 +1,6 @@
 # Code-Erklärung: Video-/GIF-Skripte
 
-Beschreibt die aktiven Skripte des Video-/GIF-Teils. Für den Audio-Teil siehe
-`dokumentation/aktuell/03_code_erklaerung.md`.
+Beschreibt die aktiven Skripte des Video-/GIF-Teils. Für den Audio-Teil siehe `../../audio-pipeline/README.md`.
 
 ## Frühe Phase (bis 03.07.2026)
 
