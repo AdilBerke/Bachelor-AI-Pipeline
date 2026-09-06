@@ -104,18 +104,22 @@ aber keinen NIQE-Wert — und damit nicht die in der Arbeit dokumentierten Vergl
 
 ## 4. Basismodelle herunterladen
 
-Modelle werden **nicht automatisch beim ersten Gebrauch** geladen (Ausnahme: LTX-Video, siehe 4d) —
-sie müssen vorher explizit lokal bereitgestellt werden.
+Die beiden Basismodelle (MusicGen und LTX-Video) werden beim ersten Gebrauch automatisch von
+Hugging Face geladen. Die optionalen Zusatzmodelle müssen explizit bereitgestellt werden.
 
 **4a. MusicGen Melody Large (Pflicht für die Audio-Pipeline, ca. 15 GB):**
 
-```bash
-.venv/bin/python audio-pipeline/code/src/Training/setup_musicgen_melody_large.py --download
-```
+Kein gesonderter Setup-Schritt nötig. Die Audiopipeline lädt das Modell beim ersten Lauf selbst
+über die Modell-ID `facebook/musicgen-melody-large` (siehe `--model-id` in
+`audio-pipeline/code/src/Training/audio_erstellen.py`) und legt es im Hugging-Face-Cache ab.
+Der erste Generierungslauf dauert dadurch deutlich länger als die folgenden.
 
-Lädt `facebook/musicgen-melody-large` von Hugging Face nach
-`audio-pipeline/daten/modelle/musicgen/facebook_musicgen_melody_large/`. Ohne `--download` zeigt das
-Skript nur Status und nötigen Befehl an, lädt aber nichts.
+Optional lässt sich der Download vorziehen:
+
+```bash
+.venv/bin/python -c "from huggingface_hub import snapshot_download; \
+  snapshot_download('facebook/musicgen-melody-large')"
+```
 
 **4b. CLAP (semantische Genre-Prüfung, ca. 590 MB, optional):**
 
