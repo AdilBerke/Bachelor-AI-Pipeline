@@ -179,9 +179,10 @@ npm install
 npm run dev -- --port 8080
 ```
 
-`package.json`/`package-lock.json` (bzw. `bun.lock`) übernehmen für Node bereits die Rolle von
-`requirements.txt` — kein separater Schritt nötig. `.env` enthält nur öffentliche, clientseitig
-sichere Supabase-Werte und kann unverändert übernommen werden.
+`package.json`/`package-lock.json` übernehmen für Node bereits die Rolle von `requirements.txt` —
+kein separater Schritt nötig. Das Frontend benötigt **keine** Konfigurationsdatei und keine
+Zugangsdaten: Es spricht ausschließlich das lokale Backend auf Port 8000 an (feste Adresse in
+`frontend/src/lib/settings.ts`). Externe Dienste werden nicht verwendet.
 
 ## 6. Backend starten
 

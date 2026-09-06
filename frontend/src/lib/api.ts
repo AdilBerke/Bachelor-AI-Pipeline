@@ -122,6 +122,9 @@ export const SCORE_CATEGORIES = [
   "Genre-Treue",
   "Übergangsqualität",
   "Referenzähnlichkeit",
+  "Stille-/Aktivitätsanteil",
+  "Rhythmische Stabilität",
+  "Klangfarbenbalance",
 ] as const;
 
 export type ScoreCategory = (typeof SCORE_CATEGORIES)[number];
