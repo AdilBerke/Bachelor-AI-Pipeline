@@ -252,7 +252,7 @@ beschrieben. In den aktuellen Root-Dateien liegt kein `code/website/`-Ordner
 mehr. Die letzten Sitzungsnotizen nennen als Frontend-Ort:
 
 ```text
-/tmp/lo-fi-harmony-forge-newweb
+frontend/
 ```
 
 Das ist ein separates Git-Repo auf Branch `NewWeb` und kann nach einem Neustart
@@ -260,12 +260,11 @@ fehlen, weil es unter `/tmp` liegt. Vor Arbeiten an der Website muss deshalb
 zuerst geprueft werden, ob dieses Repo noch existiert oder neu geklont werden
 muss.
 
-Node ist in frischen Shells nicht sicher im `PATH`. Der zuletzt bekannte
-Node-Pfad war:
-
-```text
-/home/BA_Musikproduktion/.cache/lo-fi-dreamer-node/node-v22.22.3-linux-x64/bin
-```
+Node ist in frischen Shells nicht immer im `PATH`. Erforderlich ist Node 22.x;
+auf der Entwicklungsmaschine lag es unter
+`~/.cache/lo-fi-dreamer-node/node-v22.22.3-linux-x64/bin` und musste vor
+`npm`-Befehlen exportiert werden. Bei einer regulären Node-Installation
+(`apt`, `nvm`, Paketmanager) entfaellt dieser Schritt.
 
 Die Website sollte nur echte lokale Daten anzeigen. Fruehere Mock-/Landingpage-
 Sektionen mit erfundenen Werten wurden entfernt oder sollten entfernt bleiben.
@@ -315,7 +314,7 @@ diese echte Pipeline angebunden.
   nachziehen.
 - Bei neuen Experimenten erneut pruefen, ob `adapter.pt` weiterhin auf den
   bewusst freigegebenen Stand zeigt.
-- Website-Repo unter `/tmp/lo-fi-harmony-forge-newweb` verifizieren oder neu
+- Frontend unter `frontend/` verifizieren oder neu
   herstellen.
 - Cookie-basierte YouTube-Importe (`cookies-from-browser`) nur nach bewusster
   Entscheidung einbauen.

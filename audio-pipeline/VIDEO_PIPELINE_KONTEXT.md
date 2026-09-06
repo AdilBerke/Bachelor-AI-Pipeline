@@ -210,8 +210,8 @@ LTX-Video 13B + LoRA-Fine-Tuning für Lo-Fi Anime Loops.
 - **Basismodell:** `LTXV_13B_097_DEV`
 - **Pipeline-Klasse:** `LTXConditionPipeline` (ltxv_trainer)
 - **Training:** LoRA via `accelerate` + `ltxv-trainer`
-- **Python-Env:** `/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/.venv/bin/python`
-- **Root:** `/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/Bachelorarbeit/lofi_pipeline/`
+- **Python-Env:** `.venv/bin/python` (Repo-Wurzel, siehe NACHBAUANLEITUNG.md Schritt 3a)
+- **Root:** `video-pipeline/lofi_pipeline/`
 
 ## Dateistruktur
 
@@ -595,7 +595,7 @@ LTXV_VRAM_LIMIT_FRACTION=0.80                     # reserviert 20% VRAM als Puff
 
 ### model_paths.yaml — vollständig
 ```yaml
-python: "/home/BA_Musikproduktion/Documents/Bachelor_VisiualStudio/.venv/bin/python"
+python: ".venv/bin/python"   # Pfad zur Haupt-Umgebung, relativ zur Repo-Wurzel
 trainer_script: ".../tools/LTX-Video-Trainer/scripts/train.py"
 preprocess_script: ".../tools/LTX-Video-Trainer/scripts/preprocess_dataset.py"
 generate_script: ".../pipeline/v003_manual/generate.py"

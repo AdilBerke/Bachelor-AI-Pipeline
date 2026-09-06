@@ -119,7 +119,7 @@ React/TS-Frontend (shadcn, Bun), Pages: `DataCollectionTab`, `VideoGenerationTab
 
 | Ort | Zweck | Status |
 |---|---|---|
-| `/tmp/lo-fi-harmony-forge-newweb/` | **Video-Website, Variante 2 — die tatsächlich aktiv genutzte.** Läuft aktuell live (Vite Dev-Server, Port 8080) + Python-Backend (Port 8000). Route `studio.video.tsx`: Referenzbild-Upload, 5-Sterne-Bewertung, Problem-Tags, "Verbesserung anfordern" | UX-Entwurf vollständig, **aber im Code selbst als "Design-Schritt" markiert — keine Backend-Anbindung, kein `fetch`-Aufruf im gesamten File** |
+| `frontend/` | **Video-Website, Variante 2 — die tatsächlich aktiv genutzte.** Läuft aktuell live (Vite Dev-Server, Port 8080) + Python-Backend (Port 8000). Route `studio.video.tsx`: Referenzbild-Upload, 5-Sterne-Bewertung, Problem-Tags, "Verbesserung anfordern" | UX-Entwurf vollständig, **aber im Code selbst als "Design-Schritt" markiert — keine Backend-Anbindung, kein `fetch`-Aufruf im gesamten File** |
 | `~/Downloads/video_pipeline/` (+ 3 Zip-Sicherungen) | Allererster Versuch (06.–10.05.2026): vollautomatische YouTube→Clip→GIF-Trainingsdatenpipeline, 101 vordefinierte Kategorien | Code nachweislich funktionsfähig (Test mit synthetischem Clip erfolgreich), aber nie mit echten Daten durchgelaufen; `current_clip_count: 0` bei allen 101 Kategorien |
 
 ---

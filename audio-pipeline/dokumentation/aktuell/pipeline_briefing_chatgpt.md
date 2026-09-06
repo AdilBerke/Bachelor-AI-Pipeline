@@ -137,7 +137,7 @@ sich gut an", sondern mit echten, berechneten Zahlen.
 
 **Was der Nutzer sieht/tut:**
 - Genre und Audio auswählen.
-- Ein Radar-Diagramm (Netzdiagramm) zeigt die gemessenen Werte in fünf Kategorien.
+- Ein Radar-Diagramm (Netzdiagramm) zeigt die gemessenen Werte in acht Kategorien.
 - Ein "Jetzt bewerten"-Knopf löst die Messung aus, falls noch keine vorliegt.
 
 **Technisch dahinter — die fünf echten Kategorien** (es gibt keine weiteren; alles andere
