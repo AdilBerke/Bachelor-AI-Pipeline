@@ -69,7 +69,7 @@ python3.11 -m venv .venv
 .venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements.txt
 ```
 
-`requirements.txt` (Projektwurzel) enthält alle 231 Pakete beider Pipelines, exakt gepinnt
+`requirements.txt` (Projektwurzel) enthält alle 233 Pakete beider Pipelines, exakt gepinnt
 per `pip freeze` aus der laufenden Umgebung — u. a. `audiocraft`, `transformers`, `xformers`,
 `librosa`, `demucs`, `yt-dlp` (Audio) sowie `diffusers`, `ltxv_trainer` (per Git-Commit
 gepinnt), `decord`, `opencv-python`, `gradio` (Video). Das `--extra-index-url` ist nötig,
@@ -79,8 +79,8 @@ Wheel-Index liegt, nicht auf PyPI selbst.
 **3b. Zweite Umgebung für die NIQE-Bewertung (Pflicht für die Videoevaluation):**
 
 ```bash
-python3.11 -m venv .venv-niqe
-.venv-niqe/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements-niqe.txt
+.venv/bin/python -m venv --system-site-packages .venv-niqe
+.venv-niqe/bin/pip install -r requirements-niqe.txt
 ```
 
 > **Diese Pakete dürfen nicht in `.venv` installiert werden.** `pyiqa` erzwingt

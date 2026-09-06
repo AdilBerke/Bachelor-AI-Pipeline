@@ -43,8 +43,8 @@ frontend/          React/TypeScript — Studio-Weboberfläche
 ```
 
 ```bash
-git clone <url-dieses-repositories>
-cd <repo-name>
+git clone https://github.com/AdilBerke/Bachelor-AI-Pipeline.git
+cd Bachelor-AI-Pipeline
 ```
 
 `audio-pipeline/` und `video-pipeline/` teilen sich **eine** Python-Umgebung (siehe Schritt 3);
@@ -91,8 +91,8 @@ Interpreter, sämtliche Beispiele unten sind entsprechend von der Wurzel aus for
 **Zweite Umgebung für die NIQE-Bewertung:**
 
 ```bash
-python3.11 -m venv .venv-niqe
-.venv-niqe/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu124 -r requirements-niqe.txt
+.venv/bin/python -m venv --system-site-packages .venv-niqe
+.venv-niqe/bin/pip install -r requirements-niqe.txt
 ```
 
 Diese Pakete dürfen **nicht** in `.venv` installiert werden: `pyiqa` erzwingt `transformers>=5`,
