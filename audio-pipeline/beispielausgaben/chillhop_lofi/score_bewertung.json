@@ -1,0 +1,115 @@
+{
+  "status": "finished",
+  "created_at": "2026-08-21T17:39:38",
+  "audio": "training/ausgaben/musicgen_generiert/pipeline_20260821_160934_audio/lange_audio.mp3",
+  "genre": "Chillhop",
+  "genre_key": "chillhop",
+  "standard_profile": "daten/metadata/genrestandards/chillhop.json",
+  "standard_reference_count": 20,
+  "kategorien": [
+    "Technische Audioqualität",
+    "Musikalische Kohärenz",
+    "Genre-Treue",
+    "Übergangsqualität",
+    "Referenzähnlichkeit",
+    "Stille-/Aktivitätsanteil",
+    "Rhythmische Stabilität",
+    "Klangfarbenbalance"
+  ],
+  "genrestandard_scores": {
+    "Technische Audioqualität": 100.0,
+    "Musikalische Kohärenz": 100.0,
+    "Genre-Treue": 100.0,
+    "Übergangsqualität": 100.0,
+    "Referenzähnlichkeit": 100.0,
+    "Stille-/Aktivitätsanteil": 100.0,
+    "Rhythmische Stabilität": 100.0,
+    "Klangfarbenbalance": 100.0
+  },
+  "generierte_audio_scores": {
+    "Technische Audioqualität": 100.0,
+    "Musikalische Kohärenz": 39.1,
+    "Genre-Treue": 68.5,
+    "Übergangsqualität": 84.6,
+    "Referenzähnlichkeit": 76.3,
+    "Stille-/Aktivitätsanteil": 100.0,
+    "Rhythmische Stabilität": 64.9,
+    "Klangfarbenbalance": 100.0
+  },
+  "groesste_unterschiede": [
+    {
+      "Kategorie": "Musikalische Kohärenz",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 39.1,
+      "Differenz": -60.9
+    },
+    {
+      "Kategorie": "Rhythmische Stabilität",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 64.9,
+      "Differenz": -35.1
+    },
+    {
+      "Kategorie": "Übergangsqualität",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 84.6,
+      "Differenz": -15.4
+    },
+    {
+      "Kategorie": "Genre-Treue",
+      "Genrestandard": 60.7,
+      "Generierte Audio": 68.5,
+      "Differenz": 7.8
+    },
+    {
+      "Kategorie": "Referenzähnlichkeit",
+      "Genrestandard": 78.9,
+      "Generierte Audio": 76.3,
+      "Differenz": -2.6
+    },
+    {
+      "Kategorie": "Technische Audioqualität",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 100.0,
+      "Differenz": 0.0
+    },
+    {
+      "Kategorie": "Stille-/Aktivitätsanteil",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 100.0,
+      "Differenz": 0.0
+    },
+    {
+      "Kategorie": "Klangfarbenbalance",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 100.0,
+      "Differenz": 0.0
+    }
+  ],
+  "auswertung": "Die groesste Abweichung liegt bei Musikalische Kohärenz: die generierte Audio liegt 60.9 Punkte unter dem Genrestandard. Zusaetzlich faellt Rhythmische Stabilität auf (35.1 Punkte unter Standard).",
+  "csv": "training/ausgaben/musicgen_generiert/pipeline_20260821_160934_audio/score_bewertung.csv",
+  "html": "training/ausgaben/musicgen_generiert/pipeline_20260821_160934_audio/score_bewertung.html",
+  "hinweis": "Referenzaehnlichkeit ist eine messbare Naehe zum Genrestandard, keine objektive musikalische Qualitaet.",
+  "interne_kennwerte": {
+    "duration_sec": 1200.0,
+    "rms_db": -23.704,
+    "peak_db": -1.601,
+    "clipping_ratio": 0.0,
+    "active_ratio": 0.9817,
+    "quiet_ratio": 0.0183,
+    "half_drop_db": 0.0,
+    "explosion_db": 6.388,
+    "rms_range_db": 38.592,
+    "bass_ratio": 0.34927,
+    "snare_ratio": 0.11996,
+    "high_ratio": 0.0079,
+    "tone_ratio": 0.00092,
+    "spectral_centroid": 849.329,
+    "bpm": 78.12,
+    "bpm_std": 11.706,
+    "seam_loudness_jump_db": 2.68,
+    "seam_spectral_jump": 0.24859,
+    "seam_click": 0.00318,
+    "seam_harmonic_jump": 0.05903
+  }
+}

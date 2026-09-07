@@ -1,0 +1,115 @@
+{
+  "status": "finished",
+  "created_at": "2026-08-23T00:29:32",
+  "audio": "training/ausgaben/musicgen_generiert/pipeline_20260822_225829_audio/lange_audio.mp3",
+  "genre": "Guitar Lo-Fi",
+  "genre_key": "guitar_lofi",
+  "standard_profile": "daten/metadata/genrestandards/guitar_lofi.json",
+  "standard_reference_count": 20,
+  "kategorien": [
+    "Technische Audioqualität",
+    "Musikalische Kohärenz",
+    "Genre-Treue",
+    "Übergangsqualität",
+    "Referenzähnlichkeit",
+    "Stille-/Aktivitätsanteil",
+    "Rhythmische Stabilität",
+    "Klangfarbenbalance"
+  ],
+  "genrestandard_scores": {
+    "Technische Audioqualität": 100.0,
+    "Musikalische Kohärenz": 99.6,
+    "Genre-Treue": 100.0,
+    "Übergangsqualität": 100.0,
+    "Referenzähnlichkeit": 100.0,
+    "Stille-/Aktivitätsanteil": 100.0,
+    "Rhythmische Stabilität": 100.0,
+    "Klangfarbenbalance": 100.0
+  },
+  "generierte_audio_scores": {
+    "Technische Audioqualität": 100.0,
+    "Musikalische Kohärenz": 60.8,
+    "Genre-Treue": 31.3,
+    "Übergangsqualität": 100.0,
+    "Referenzähnlichkeit": 56.3,
+    "Stille-/Aktivitätsanteil": 100.0,
+    "Rhythmische Stabilität": 91.2,
+    "Klangfarbenbalance": 100.0
+  },
+  "groesste_unterschiede": [
+    {
+      "Kategorie": "Genre-Treue",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 31.3,
+      "Differenz": -68.7
+    },
+    {
+      "Kategorie": "Referenzähnlichkeit",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 56.3,
+      "Differenz": -43.7
+    },
+    {
+      "Kategorie": "Musikalische Kohärenz",
+      "Genrestandard": 99.6,
+      "Generierte Audio": 60.8,
+      "Differenz": -38.8
+    },
+    {
+      "Kategorie": "Rhythmische Stabilität",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 91.2,
+      "Differenz": -8.8
+    },
+    {
+      "Kategorie": "Technische Audioqualität",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 100.0,
+      "Differenz": 0.0
+    },
+    {
+      "Kategorie": "Übergangsqualität",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 100.0,
+      "Differenz": 0.0
+    },
+    {
+      "Kategorie": "Stille-/Aktivitätsanteil",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 100.0,
+      "Differenz": 0.0
+    },
+    {
+      "Kategorie": "Klangfarbenbalance",
+      "Genrestandard": 100.0,
+      "Generierte Audio": 100.0,
+      "Differenz": 0.0
+    }
+  ],
+  "auswertung": "Die groesste Abweichung liegt bei Genre-Treue: die generierte Audio liegt 68.7 Punkte unter dem Genrestandard. Zusaetzlich faellt Referenzähnlichkeit auf (43.7 Punkte unter Standard).",
+  "csv": "training/ausgaben/musicgen_generiert/pipeline_20260822_225829_audio/score_bewertung.csv",
+  "html": "training/ausgaben/musicgen_generiert/pipeline_20260822_225829_audio/score_bewertung.html",
+  "hinweis": "Referenzaehnlichkeit ist eine messbare Naehe zum Genrestandard, keine objektive musikalische Qualitaet.",
+  "interne_kennwerte": {
+    "duration_sec": 1200.0,
+    "rms_db": -23.798,
+    "peak_db": -1.378,
+    "clipping_ratio": 0.0,
+    "active_ratio": 0.9975,
+    "quiet_ratio": 0.0025,
+    "half_drop_db": 0.311,
+    "explosion_db": 7.278,
+    "rms_range_db": 35.89,
+    "bass_ratio": 0.26884,
+    "snare_ratio": 0.21547,
+    "high_ratio": 0.00215,
+    "tone_ratio": 0.00122,
+    "spectral_centroid": 1151.794,
+    "bpm": 78.12,
+    "bpm_std": 2.947,
+    "seam_loudness_jump_db": 1.903,
+    "seam_spectral_jump": 0.08568,
+    "seam_click": 0.00099,
+    "seam_harmonic_jump": 0.06165
+  }
+}

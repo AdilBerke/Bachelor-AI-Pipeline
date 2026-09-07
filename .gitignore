@@ -56,6 +56,9 @@ lightning_logs/
 # Media/model binaries stay local by default
 *.wav
 *.mp3
+# Ausnahme: fuenf Beispiel-Longform-Ausgaben (eine je Genre) samt Bewertung,
+# als Beleg fuer die in Kapitel 8 der Arbeit berichteten Ergebnisse.
+!audio-pipeline/beispielausgaben/**/*.mp3
 *.m4a
 *.flac
 *.aac

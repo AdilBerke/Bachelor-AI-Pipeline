@@ -46,6 +46,7 @@ getrennt: Erstere bewertet die fertige Datei, letztere entscheidet, welcher kurz
 | `code/src/Pipeline/web_api.py` | HTTP-Backend auf Port 8000, Jobsteuerung |
 | `code/start.py` | Kommandozeilen-Einstiegspunkt |
 | `code/configs/konfiguration.yaml` | Basismodell, Adapterpfad, Genres |
+| `beispielausgaben/` | fünf vollständige 20-min-Longform-Audios (eine je Genre) samt Bewertung, siehe [`beispielausgaben/README.md`](beispielausgaben/README.md) |
 
 ## Modellstand
 
